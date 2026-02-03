@@ -1,0 +1,10 @@
+[project]
+name = "embedding-service"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "python-dotenv>=1.2.1",
+    "transformers>=5.0.0",
+]
