@@ -4,112 +4,11 @@
 
 ---
 
-## 1. Embedding Service
-
-### POST /embeddings
-
-Generate embeddings for texts.
-
-**Request:**
-```json
-{
-  "texts": ["text1", "text2"]
-}
-```
-
-**Response:**
-```json
-{
-  "embeddings": [[0.1, 0.2, ...], [0.3, 0.4, ...]],
-  "dimension": 1024
-}
-```
-
----
-
-## 2. Reranker Service
-
-### POST /reranker
-
-Rerank documents by query relevance.
-
-**Request:**
-```json
-{
-  "query": "query text",
-  "documents": ["doc1", "doc2", "doc3"],
-  "top_n": 3
-}
-```
-
-**Response:**
-```json
-{
-  "results": [0, 2],
-  "scores": [0.95, 0.82]
-}
-```
-
----
-
-## 3. Retrieval Service
-
-### POST /retrieval
-
-Query vector database.
-
-**Request:**
-```json
-{
-  "query": "search query",
-  "top_k": 10,
-  "filter": {"category": "combat"},
-  "namespace": "rules"
-}
-```
-
-**Response:**
-```json
-{
-  "results": [
-    {
-      "id": "doc-001",
-      "content": "document content",
-      "score": 0.89,
-      "metadata": {"source": "PHB", "page": 190}
-    }
-  ],
-  "total": 1,
-  "query": "search query"
-}
-```
-
----
-
-### POST /retrieval/upsert
-
-Index documents.
-
-**Request (Form Data):**
-- `ids`: string[]
-- `texts`: string[]
-- `namespace`: string (default: "")
-- `metadata`: object[] (optional)
-
-**Response:**
-```json
-{
-  "message": "Successfully upserted 5 documents"
-}
-```
-
----
-
-## 4. DM Agent
+## 1. DM Agent API (暴露给用户)
 
 ### POST /agent
 
-Process query with three-layer memory.
+Process query with three-layer memory system.
 
 **Request:**
 ```json
@@ -130,14 +29,60 @@ Process query with three-layer memory.
 
 ---
 
-## Namespaces
+## 2. 需要服务机提供的 API
 
-| Namespace | Purpose |
-|-----------|---------|
-| `rules` | D&D rules, spells, combat |
-| `episodes` | Session summaries |
-| `monsters` | Monster stat blocks |
-| `spells` | Spell descriptions |
+服务机运行 embedding 和 reranker 模型，需提供以下接口：
+
+### POST /embeddings
+
+生成文本嵌入向量。
+
+**Request:**
+```json
+{
+  "texts": ["text1", "text2"]
+}
+```
+
+**Response:**
+```json
+{
+  "embeddings": [[0.1, 0.2, ...], [0.3, 0.4, ...]],
+  "dimension": 1024
+}
+```
+
+### POST /reranker
+
+对文档进行重排序。
+
+**Request:**
+```json
+{
+  "query": "query text",
+  "documents": ["doc1", "doc2", "doc3"],
+  "top_n": 3
+}
+```
+
+**Response:**
+```json
+{
+  "results": [0, 2],
+  "scores": [0.95, 0.82]
+}
+```
+
+---
+
+## Pinecone Namespace 规范
+
+| Namespace | 用途 |
+|-----------|-------|
+| `rules` | D&D 规则、法术、战斗 |
+| `episodes` | 会话摘要 |
+| `monsters` | 怪物图鉴 |
+| `spells` | 法术描述 |
 
 ---
 
