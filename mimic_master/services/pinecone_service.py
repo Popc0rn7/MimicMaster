@@ -1,11 +1,12 @@
 """Pinecone vector database service with singleton pattern."""
 
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from pinecone import Pinecone, ServerlessSpec
 from mimic_master.config import settings
 from mimic_master.models.embeddings import EmbeddingResponse
 from mimic_master.models.retrieval import RetrievedDocument
+from mimic_master.models.embeddings import DenseAndSparseEmbeddings, SparseVector
 
 from mimic_master.services.embedding_service import get_embedding_service
 
@@ -49,7 +50,7 @@ class PineconeService:
         self.client.create_index(
             name=self._index_name,
             dimension=self._dimension,
-            metric="cosine",
+            metric="dotproduct",  # Use dotproduct for hybrid search
             spec=ServerlessSpec(cloud=cloud, region=region),
         )
         print(f"Index '{self._index_name}' created successfully.")
@@ -57,17 +58,17 @@ class PineconeService:
     async def upsert(
         self,
         ids: List[str],
-        embeddings: List[List[float]],
+        embeddings: List[DenseAndSparseEmbeddings],
         contents: List[str],
         metadata: Optional[List[dict]] = None,
         namespace: str = "",
     ) -> None:
         """
-        Upsert documents into the index.
+        Upsert documents into index with dense + sparse embeddings.
 
         Args:
             ids: List of document IDs
-            embeddings: List of embedding vectors
+            embeddings: List of dense and sparse embeddings
             contents: List of document contents
             metadata: Optional list of metadata dictionaries
             namespace: Namespace for the documents
@@ -79,16 +80,23 @@ class PineconeService:
             metadata = [{}] * len(ids)
 
         vectors = []
-        for i, (id_, embedding) in enumerate(zip(ids, embeddings)):
+        for i, (id_, emb) in enumerate(zip(ids, embeddings)):
             vector_metadata = {
                 "content": contents[i],
                 **metadata[i],
             }
-            vectors.append({
+
+            # Build vector with both dense and sparse components
+            vector_data: Dict[str, Any] = {
                 "id": id_,
-                "values": embedding,
+                "values": emb.dense,
+                "sparse_values": {
+                    "indices": emb.sparse.indices,
+                    "values": emb.sparse.values,
+                },
                 "metadata": vector_metadata,
-            })
+            }
+            vectors.append(vector_data)
 
         index = self.client.Index(self._index_name)
         index.upsert(vectors=vectors, namespace=namespace)
@@ -98,15 +106,17 @@ class PineconeService:
         self,
         query_embedding: List[float],
         top_k: int = 10,
+        sparse_vector: Optional[Dict[str, Any]] = None,
         filter_dict: Optional[dict] = None,
         namespace: str = "",
     ) -> List[RetrievedDocument]:
         """
-        Query the index for similar documents.
+        Query index with hybrid search (dense + sparse).
 
         Args:
-            query_embedding: Query embedding vector
+            query_embedding: Dense query embedding vector
             top_k: Number of results to return
+            sparse_vector: Optional sparse vector for hybrid search
             filter_dict: Optional metadata filter
             namespace: Namespace to query
 
@@ -117,13 +127,21 @@ class PineconeService:
             raise RuntimeError("Pinecone is not configured.")
 
         index = self.client.Index(self._index_name)
-        results = index.query(
-            vector=query_embedding,
-            top_k=top_k,
-            filter=filter_dict,
-            namespace=namespace,
-            include_metadata=True,
-        )
+
+        # Build query parameters
+        query_params: Dict[str, Any] = {
+            "vector": query_embedding,
+            "top_k": top_k,
+            "filter": filter_dict,
+            "namespace": namespace,
+            "include_metadata": True,
+        }
+
+        # Add sparse vector if provided (hybrid search)
+        if sparse_vector is not None:
+            query_params["sparse_vector"] = sparse_vector
+
+        results = index.query(**query_params)
 
         documents = []
         for match in results.matches:
@@ -159,6 +177,10 @@ class PineconeService:
         from mimic_master.models.embeddings import EmbeddingRequest
 
         response = await embedding_service.embed(texts)
+
+        # Extract dense embeddings for backward compatibility
+        dense_embeddings = [emb.dense for emb in response.embeddings]
+
         await self.upsert(
             ids=ids,
             embeddings=response.embeddings,

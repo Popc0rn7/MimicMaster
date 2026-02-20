@@ -1,8 +1,10 @@
 """Retrieval API router."""
 
 from fastapi import APIRouter, HTTPException
+from typing import Optional
 
 from mimic_master.models.retrieval import RetrievalRequest, RetrievalResponse
+from mimic_master.models.embeddings import DenseAndSparseEmbeddings, SparseVector
 from mimic_master.services.pinecone_service import get_pinecone_service
 from mimic_master.services.embedding_service import get_embedding_service
 
@@ -14,6 +16,8 @@ async def retrieve(request: RetrievalRequest) -> RetrievalResponse:
     """
     Retrieve relevant documents from the vector database.
 
+    Supports hybrid search when sparse_vector is provided in the request.
+
     Args:
         request: RetrievalRequest containing query and retrieval parameters
 
@@ -21,15 +25,26 @@ async def retrieve(request: RetrievalRequest) -> RetrievalResponse:
         RetrievalResponse with retrieved documents
     """
     try:
-        # Generate embedding for the query
+        # Generate embedding for query
         embedding_service = get_embedding_service()
         embedding_response = await embedding_service.embed([request.query])
-        query_embedding = embedding_response.embeddings[0]
 
-        # Query Pinecone
+        # Get dense and sparse vectors
+        dense_and_sparse: DenseAndSparseEmbeddings = embedding_response.embeddings[0]
+
+        # Prepare query parameters
+        sparse_vector = None
+        if request.sparse_vector:
+            sparse_vector = {
+                "indices": request.sparse_vector.indices,
+                "values": request.sparse_vector.values,
+            }
+
+        # Query Pinecone with hybrid search
         pinecone_service = get_pinecone_service()
         results = await pinecone_service.query(
-            query_embedding=query_embedding,
+            query_embedding=dense_and_sparse.dense,
+            sparse_vector=sparse_vector,
             top_k=request.top_k,
             filter_dict=request.filter,
             namespace=request.namespace,

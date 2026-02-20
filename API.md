@@ -35,7 +35,7 @@ Process query with three-layer memory system.
 
 ### POST /embeddings
 
-生成文本嵌入向量。
+生成文本嵌入向量（同时返回 dense 和 sparse）。
 
 **Request:**
 ```json
@@ -47,10 +47,23 @@ Process query with three-layer memory system.
 **Response:**
 ```json
 {
-  "embeddings": [[0.1, 0.2, ...], [0.3, 0.4, ...]],
-  "dimension": 1024
+  "embeddings": [
+    {
+      "dense": [0.1, 0.2, ..., 0.5],
+      "sparse": {
+        "indices": [10, 45, 16, ...],
+        "values": [0.5, 0.2, 0.8, ...]
+      }
+    }
+  ],
+  "dense_dimension": 1024
 }
 ```
+
+**字段说明:**
+- `dense`: Dense embedding 向量
+- `sparse.indices`: 非零元素的索引
+- `sparse.values`: 对应索引的值
 
 ### POST /reranker
 
