@@ -1,7 +1,7 @@
 # 项目背景 (Project Context)
 本项目是一个为《龙与地下城 (D&D 5E)》设计的地下城主 (DM) 辅助 AI Agent。
 核心技术栈：
-- 语言：Python 3.12（暂定）
+- 语言：Python 3.12
 - 项目管理: uv
 - 服务框架：FastAPI (轻量级、性能优越、易于开发和部署)
 - agent框架：LangSmith (提供强大的工具和接口，适合构建复杂的 agent 系统)
