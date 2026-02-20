@@ -160,6 +160,68 @@ mimic-master/
 - **容错处理**: 所有外部调用必须有异常捕获
 - **环境管理**: 使用 `.env` 管理配置，不硬编码
 
+## CI/CD
+
+### 自动化测试
+
+推送代码到 `main` 分支时自动运行测试：
+
+```bash
+# 运行本地测试
+uv run pytest
+
+# 检查代码风格
+uv run ruff check .
+uv run black --check .
+```
+
+### 部署
+
+#### 方式一：使用部署脚本
+
+```bash
+# 配置服务器信息
+export SERVER_HOST=your-server.com
+export SERVER_USER=your-username
+export SERVER_PATH=/opt/mimic-master
+
+# 执行部署
+./deploy.sh
+```
+
+#### 方式二：使用 GitHub Actions
+
+在 GitHub 仓库中配置以下 Secrets：
+
+| Secret | 说明 |
+|--------|------|
+| `SSH_PRIVATE_KEY` | SSH 私钥（用于连接服务器） |
+| `SERVER_HOST` | 服务器地址 |
+| `SERVER_USER` | 服务器用户名 |
+| `SERVER_PATH` | 服务器部署路径 |
+
+推送到 `main` 分支后自动部署。
+
+#### 方式三：使用 Docker
+
+```bash
+# 构建镜像
+docker build -t mimic-master:latest .
+
+# 运行容器
+docker run -d \
+  --name mimic-master \
+  -p 8000:8000 \
+  --env-file .env \
+  mimic-master:latest
+```
+
+或使用 docker-compose：
+
+```bash
+docker-compose up -d --build
+```
+
 ## 依赖
 
 | 包 | 用途 |

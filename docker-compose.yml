@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  mimic-master:
+    build: .
+    container_name: mimic-master
+    ports:
+      - "8000:8000"
+    environment:
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - PINECONE_INDEX=${PINECONE_INDEX}
+      - EMBEDDING_PROVIDER_URL=${EMBEDDING_PROVIDER_URL}
+      - RERANKER_PROVIDER_URL=${RERANKER_PROVIDER_URL}
+      - EMBEDDING_DIMENSION=${EMBEDDING_DIMENSION:-1024}
+      - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
+      - LANGSMITH_PROJECT=${LANGSMITH_PROJECT}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

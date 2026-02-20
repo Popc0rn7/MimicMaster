@@ -1,0 +1,42 @@
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Virtual environments
+.venv
+venv/
+ENV/
+
+# Git
+.git
+.gitignore
+.github
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Environment
+.env
+.env.*
+
+# Documentation
+README.md
+API.md
+CLAUDE.md
+PROGRESS.md
+
+# Tests
+test/
+pytest
+.pytest_cache
+
+# Docker
+Dockerfile
+docker-compose.yml
