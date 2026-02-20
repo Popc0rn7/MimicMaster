@@ -1,71 +1,55 @@
-"""Agent API router."""
+"""Agent API router.
+
+Integrates with the three-layer memory system.
+"""
 
 from fastapi import APIRouter, HTTPException
-from typing import List
 
 from mimic_master.models.agent import AgentRequest, AgentResponse
-from mimic_master.models.retrieval import RetrievalRequest
-
-from mimic_master.services.pinecone_service import get_pinecone_service
-from mimic_master.services.embedding_service import get_embedding_service
-from mimic_master.services.reranker_service import get_reranker_service
+from mimic_master.core import DMAgent
 
 agent_router = APIRouter()
+
+# Global agent instance (singleton)
+_dm_agent: DMAgent | None = None
+
+
+def get_dm_agent() -> DMAgent:
+    """Get or create the DM agent instance."""
+    global _dm_agent
+    if _dm_agent is None:
+        _dm_agent = DMAgent()
+    return _dm_agent
 
 
 @agent_router.post("/", response_model=AgentResponse)
 async def agent_chat(request: AgentRequest) -> AgentResponse:
     """
-    Process a query through the DM agent with RAG retrieval.
+    Process a query through the DM agent with three-layer memory system.
+
+    The agent will:
+    1. Classify the user's intent
+    2. Retrieve current state and dialogue history
+    3. Conditionally retrieve rules/knowledge (if relevant)
+    4. Conditionally retrieve episodic memories (if relevant)
+    5. Generate a context-aware response
 
     Args:
-        request: AgentRequest containing query, optional context, and session_id
+        request: AgentRequest containing query and optional session_id
 
     Returns:
-        AgentResponse with DM response and retrieved context
+        AgentResponse with DM response
     """
     try:
-        # Step 1: Retrieve relevant documents
-        embedding_service = get_embedding_service()
-        embedding_response = await embedding_service.embed([request.query])
-        query_embedding = embedding_response.embeddings[0]
-
-        pinecone_service = get_pinecone_service()
-        retrieved_docs = await pinecone_service.query(
-            query_embedding=query_embedding,
-            top_k=10,
-            namespace="",  # Can be configured based on campaign/world
+        agent = get_dm_agent()
+        response = await agent.process_query(
+            query=request.query,
+            session_id=request.session_id,
         )
 
-        # Step 2: Rerank if we have multiple results
-        retrieved_context: List[str] = []
-        if len(retrieved_docs) > 0:
-            if len(retrieved_docs) > 3:
-                # Use reranker for more results
-                reranker_service = get_reranker_service()
-                doc_texts = [doc.content for doc in retrieved_docs]
-                rerank_response = await reranker_service.rerank(
-                    query=request.query,
-                    documents=doc_texts,
-                    top_n=5,
-                )
-                retrieved_context = [
-                    retrieved_docs[idx].content for idx in rerank_response.results
-                ]
-            else:
-                retrieved_context = [doc.content for doc in retrieved_docs]
-
-        # Step 3: Merge context if provided
-        if request.context:
-            retrieved_context = request.context + retrieved_context
-
-        # Step 4: Generate DM response
-        # Note: This is a placeholder - actual LLM integration would go here
-        dm_response = await _generate_dm_response(request.query, retrieved_context)
-
         return AgentResponse(
-            response=dm_response,
-            retrieved_context=retrieved_context[:10],  # Limit context size
+            response=response,
+            retrieved_context=None,  # Context is now managed internally
             session_id=request.session_id,
         )
     except RuntimeError as e:
@@ -74,29 +58,33 @@ async def agent_chat(request: AgentRequest) -> AgentResponse:
         raise HTTPException(status_code=500, detail=f"Agent processing failed: {str(e)}")
 
 
-async def _generate_dm_response(query: str, context: List[str]) -> str:
+@agent_router.post("/with-context")
+async def agent_chat_with_context(request: AgentRequest) -> AgentResponse:
     """
-    Generate a DM response based on query and context.
+    Process a query and return the full assembled context (debug mode).
 
-    Note: This is a placeholder implementation.
-    In production, this would call an LLM (e.g., Claude via Anthropic API).
+    Useful for debugging to see what context was assembled.
 
     Args:
-        query: The player's query
-        context: Retrieved relevant context
+        request: AgentRequest containing query and optional session_id
 
     Returns:
-        DM response
+        AgentResponse with DM response and context details
     """
-    # Placeholder: simple template response
-    if context:
-        context_str = "\n".join([f"- {c[:100]}..." for c in context[:3]])
-        return (
-            f"As your Dungeon Master, I have found some relevant information:\n\n"
-            f"{context_str}\n\n"
-            f"Regarding your query about '{query}', let me think about that..."
+    try:
+        agent = get_dm_agent()
+        response, context = await agent.process_with_context(
+            query=request.query,
+            session_id=request.session_id,
         )
-    return (
-        f"Interesting question about '{query}'. "
-        f"As your Dungeon Master, I'll consider the game mechanics and lore..."
-    )
+
+        # Return the assembled context for debugging
+        return AgentResponse(
+            response=response,
+            retrieved_context=[context.model_dump_json()],
+            session_id=request.session_id,
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Agent processing failed: {str(e)}")

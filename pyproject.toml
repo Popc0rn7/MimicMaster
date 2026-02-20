@@ -12,6 +12,7 @@ dependencies = [
     "httpx>=0.28.0",
     "pydantic>=2.10.0",
     "uvicorn>=0.34.0",
+    "numpy>=2.0.0",
 ]
 
 [build-system]
