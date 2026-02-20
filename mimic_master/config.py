@@ -21,13 +21,13 @@ class Settings:
 
         # Embedding Service Configuration
         self.embedding_provider_url: str = os.getenv(
-            "EMBEDDING_PROVIDER_URL", "http://localhost:8000/embed"
+            "EMBEDDING_PROVIDER_URL", "mock"
         )
         self.embedding_dimension: int = int(os.getenv("EMBEDDING_DIMENSION", "1024"))
 
         # Reranker Service Configuration
         self.reranker_provider_url: str = os.getenv(
-            "RERANKER_PROVIDER_URL", "http://localhost:8000/rerank"
+            "RERANKER_PROVIDER_URL", "mock"
         )
 
         # LangSmith Configuration
