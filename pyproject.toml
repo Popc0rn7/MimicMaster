@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.129.0",
-    "pinecone-client>=6.0.0",
+    "pinecone>=6.0.0",
     "python-dotenv>=1.2.1",
     "langsmith>=0.3.0",
     "httpx>=0.28.0",
