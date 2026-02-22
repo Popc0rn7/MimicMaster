@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 
 class DialogueTurn(BaseModel):
-    """A single dialogue turn in the conversation history."""
+    """A single dialogue turn in conversation history."""
 
     role: str = Field(..., description="'user' or 'assistant'")
     content: str = Field(..., description="The message content")
@@ -15,13 +15,13 @@ class DialogueTurn(BaseModel):
 
 
 class SceneState(BaseModel):
-    """Current scene state for the game session."""
+    """Current scene state for game session."""
 
     location: str = Field(default="", description="Current location")
     time_of_day: str = Field(default="unknown", description="Time in-game")
     weather: str = Field(default="clear", description="Weather conditions")
     active_npcs: List[str] = Field(default_factory=list, description="Active NPC names")
-    notes: str = Field(default="", description="GM notes about the scene")
+    notes: str = Field(default="", description="GM notes about scene")
 
 
 class CharacterState(BaseModel):
@@ -80,12 +80,3 @@ class Intent(BaseModel):
 
     type: str = Field(..., description="Intent type: QUERY_RULES, PROCEED_STORY, CHAT, COMBAT, etc.")
     confidence: float = Field(default=1.0, description="Confidence score")
-
-
-class RetrievalConfig(BaseModel):
-    """Configuration for retrieval operations."""
-
-    top_k_rules: int = Field(default=5, description="Top K for rules retrieval")
-    top_k_episodes: int = Field(default=3, description="Top K for episodic retrieval")
-    rules_namespace: str = Field(default="rules", description="Pinecone namespace for rules")
-    episodes_namespace: str = Field(default="episodes", description="Pinecone namespace for episodes")

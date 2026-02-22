@@ -17,7 +17,9 @@ class Settings:
     def __init__(self) -> None:
         # Pinecone Configuration
         self.pinecone_api_key: str = os.getenv("PINECONE_API_KEY", "")
-        self.pinecone_index: str = os.getenv("PINECONE_INDEX", "")
+        self.pinecone_index: str = os.getenv(
+            "PINECONE_INDEX", "mimic-rules-prod"
+        )
 
         # Embedding Service Configuration
         self.embedding_provider_url: str = os.getenv(
@@ -38,8 +40,15 @@ class Settings:
             "LANGSMITH_ENDPOINT", "https://api.smith.langchain.com"
         )
 
+        # Namespace Configuration (from NAMING.md)
+        self.rules_namespace: str = os.getenv("RULES_NAMESPACE", "rules")
+        self.episodes_namespace: str = os.getenv("EPISODES_NAMESPACE", "episodes")
+        self.monsters_namespace: str = os.getenv("MONSTERS_NAMESPACE", "monsters")
+        self.spells_namespace: str = os.getenv("SPELLS_NAMESPACE", "spells")
+
         # Application Configuration
         self.base_dir: Path = Path(__file__).parent.parent.resolve()
+        self.project_name: str = "mimic-master"
 
     @property
     def use_mock_embedding(self) -> bool:
