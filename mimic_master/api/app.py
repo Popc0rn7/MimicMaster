@@ -10,6 +10,8 @@ from mimic_master.api.routes import (
     router,
     init_langsmith_tracing,
 )
+from mimic_master.database.mongodb import init_mongodb, close_mongodb
+from mimic_master.api.routers.frontend import router as frontend_router
 
 
 @asynccontextmanager
@@ -36,7 +38,20 @@ async def lifespan(app: FastAPI):
     else:
         print(f"Using reranker service at: {settings.reranker_provider_url}")
 
+    # Initialize MongoDB
+    if settings.is_mongodb_configured:
+        try:
+            await init_mongodb()
+            print(f"MongoDB connected to: {settings.mongodb_uri}")
+        except Exception as e:
+            print(f"Failed to connect to MongoDB: {e}")
+    else:
+        print("MongoDB not configured. Set MONGODB_HOST in .env")
+
     yield
+
+    # Cleanup
+    await close_mongodb()
 
 
 def create_app() -> FastAPI:
@@ -59,6 +74,7 @@ def create_app() -> FastAPI:
 
     # Include routers
     app.include_router(router, prefix="/api/v1")
+    app.include_router(frontend_router, prefix="/api/v1")
 
     return app
 

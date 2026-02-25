@@ -21,16 +21,21 @@ class Settings:
             "PINECONE_INDEX", "mimic-rules-prod"
         )
 
+        # Provider Base URL
+        self.provider_base_url: str = os.getenv("PROVIDER_BASE_URL", "")
+
         # Embedding Service Configuration
-        self.embedding_provider_url: str = os.getenv(
-            "EMBEDDING_PROVIDER_URL", "mock"
-        )
+        embed_url = os.getenv("EMBEDDING_PROVIDER_URL", "")
+        if not embed_url and self.provider_base_url:
+            embed_url = f"{self.provider_base_url}/embeddings"
+        self.embedding_provider_url: str = embed_url or "mock"
         self.embedding_dimension: int = int(os.getenv("EMBEDDING_DIMENSION", "1024"))
 
         # Reranker Service Configuration
-        self.reranker_provider_url: str = os.getenv(
-            "RERANKER_PROVIDER_URL", "mock"
-        )
+        rerank_url = os.getenv("RERANKER_PROVIDER_URL", "")
+        if not rerank_url and self.provider_base_url:
+            rerank_url = f"{self.provider_base_url}/reranker"
+        self.reranker_provider_url: str = rerank_url or "mock"
 
         # LangSmith Configuration
         self.langsmith_api_key: str = os.getenv("LANGSMITH_API_KEY", "")
@@ -45,6 +50,13 @@ class Settings:
         self.episodes_namespace: str = os.getenv("EPISODES_NAMESPACE", "episodes")
         self.monsters_namespace: str = os.getenv("MONSTERS_NAMESPACE", "monsters")
         self.spells_namespace: str = os.getenv("SPELLS_NAMESPACE", "spells")
+
+        # MongoDB Configuration
+        self.mongodb_host: str = os.getenv("MONGODB_HOST", "localhost")
+        self.mongodb_port: int = int(os.getenv("MONGODB_PORT", "27017"))
+        self.mongodb_database: str = os.getenv("MONGODB_DATABASE", "mimic_master")
+        self.mongodb_username: str = os.getenv("MONGODB_USERNAME", "")
+        self.mongodb_password: str = os.getenv("MONGODB_PASSWORD", "")
 
         # Application Configuration
         self.base_dir: Path = Path(__file__).parent.parent.resolve()
@@ -69,6 +81,18 @@ class Settings:
     def is_langsmith_configured(self) -> bool:
         """Check if LangSmith is properly configured."""
         return bool(self.langsmith_api_key)
+
+    @property
+    def mongodb_uri(self) -> str:
+        """Build MongoDB connection URI."""
+        if self.mongodb_username and self.mongodb_password:
+            return f"mongodb://{self.mongodb_username}:{self.mongodb_password}@{self.mongodb_host}:{self.mongodb_port}"
+        return f"mongodb://{self.mongodb_host}:{self.mongodb_port}"
+
+    @property
+    def is_mongodb_configured(self) -> bool:
+        """Check if MongoDB is properly configured."""
+        return bool(self.mongodb_host)
 
 
 @lru_cache
