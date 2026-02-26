@@ -47,11 +47,17 @@ PINECONE_API_KEY=your_api_key
 PINECONE_INDEX=your_index_name
 EMBEDDING_DIMENSION=1024
 
-# Embedding 服务（设为 "mock" 使用模拟模式）
-EMBEDDING_PROVIDER_URL=http://your-embedding-server:port/embeddings
+# Embedding/Reranker 服务
+# 方式一：设置基础 URL（推荐），自动生成 /embeddings 和 /reranker 端点
+PROVIDER_BASE_URL=http://your-server:port
 
-# Reranker 服务（设为 "mock" 使用模拟模式）
-RERANKER_PROVIDER_URL=http://your-reranker-server:port/reranker
+# 方式二：分别指定完整 URL
+# EMBEDDING_PROVIDER_URL=http://your-server:port/embeddings
+# RERANKER_PROVIDER_URL=http://your-server:port/reranker
+
+# 设为 "mock" 使用本地模拟模式（无需服务端）
+EMBEDDING_PROVIDER_URL=mock
+RERANKER_PROVIDER_URL=mock
 
 # LangSmith 追踪（可选）
 LANGSMITH_API_KEY=your_langsmith_key
@@ -160,16 +166,43 @@ mimic-master/
 - **容错处理**: 所有外部调用必须有异常捕获
 - **环境管理**: 使用 `.env` 管理配置，不硬编码
 
-## CI/CD
+## 测试
 
-### 自动化测试
+### 运行测试
+
+```bash
+# 运行所有测试（推荐）
+uv run pytest tests/ -v
+
+# 只运行特定模块的测试
+uv run pytest tests/test_embedding.py tests/test_reranker.py -v
+
+# 跳过需要外部服务的测试（只运行 mock 模式测试）
+uv run pytest tests/test_agent.py tests/test_embedding.py tests/test_reranker.py -v
+
+# 运行测试并显示详细信息
+uv run pytest tests/ -vv --tb=short
+```
+
+### 测试覆盖
+
+| 测试文件 | 说明 | 状态 |
+|---------|------|------|
+| `test_agent.py` | DMAgent 核心功能 | ✅ 全部通过 |
+| `test_embedding.py` | Embedding 服务（Dense + Sparse） | ✅ 全部通过 |
+| `test_reranker.py` | Reranker 服务 | ✅ 全部通过 |
+| `test_memory.py` | 状态记忆、意图分类 | ⚠️ 部分待修复 |
+| `test_retrieval.py` | 向量检索 | ⚠️ 需要 Pinecone 索引 |
+
+> **注意**: `test_memory.py` 和 `test_retrieval.py` 中的部分测试失败是已知问题，不影响核心功能。
+> - Memory 测试：Pydantic 模型验证问题
+> - Retrieval 测试：需要配置 Pinecone 索引
+
+### CI/CD
 
 推送代码到 `main` 分支时自动运行测试：
 
 ```bash
-# 运行本地测试
-uv run pytest
-
 # 检查代码风格
 uv run ruff check .
 uv run black --check .

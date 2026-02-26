@@ -213,13 +213,10 @@ class HybridKnowledgeRetriever:
 
             results = await self._pinecone.query(
                 query_embedding=dense_vec,
+                sparse_vector=sparse_pinecone,
                 top_k=top_k,
                 namespace=namespace,
             )
-
-            # Note: Pinecone Python SDK v8 hybrid search syntax may vary
-            # For now, we're using dense search. Full hybrid requires
-            # query_params with sparse_vector support.
 
             return [
                 RetrievalResult(
@@ -308,9 +305,13 @@ class HybridKnowledgeRetriever:
         embedding_service = get_embedding_service()
         response = await embedding_service.embed([query])
 
+        # Extract dense vector from response
+        emb = response.embeddings[0]
+        dense_vector = emb.dense if hasattr(emb, 'dense') else emb['dense']
+
         # Query Pinecone with dense vector
         results = await self._pinecone.query(
-            query_embedding=response.embeddings[0],
+            query_embedding=dense_vector,
             top_k=top_k,
             namespace=namespace,
         )

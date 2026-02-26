@@ -37,6 +37,14 @@ class Settings:
             rerank_url = f"{self.provider_base_url}/reranker"
         self.reranker_provider_url: str = rerank_url or "mock"
 
+        # Vision Service Configuration
+        vision_url = os.getenv("VISION_PROVIDER_URL", "")
+        if not vision_url and self.provider_base_url:
+            vision_url = f"{self.provider_base_url}/vision"
+        self.vision_provider_url: str = vision_url or "mock"
+        self.zhipu_api_key: str = os.getenv("ZHIPU_API_KEY", "")
+        self.vision_model: str = os.getenv("VISION_MODEL", "glm-4v")
+
         # LangSmith Configuration
         self.langsmith_api_key: str = os.getenv("LANGSMITH_API_KEY", "")
         self.langsmith_project: str = os.getenv("LANGSMITH_PROJECT", "mimic-master")
@@ -71,6 +79,16 @@ class Settings:
     def use_mock_reranker(self) -> bool:
         """Check if we should use mock reranker service."""
         return self.reranker_provider_url == "mock"
+
+    @property
+    def use_mock_vision(self) -> bool:
+        """Check if we should use mock vision service."""
+        return self.vision_provider_url == "mock" or not self.zhipu_api_key
+
+    @property
+    def is_vision_configured(self) -> bool:
+        """Check if vision service is properly configured."""
+        return bool(self.zhipu_api_key and self.vision_provider_url != "mock")
 
     @property
     def is_pinecone_configured(self) -> bool:

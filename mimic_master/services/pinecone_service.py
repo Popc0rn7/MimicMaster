@@ -86,13 +86,35 @@ class PineconeService:
                 **metadata[i],
             }
 
+            # Extract dense vector - handle both Pydantic model and dict
+            if hasattr(emb, 'dense'):
+                dense_vals = list(emb.dense)
+            elif isinstance(emb, dict) and 'dense' in emb:
+                dense_vals = emb['dense']
+            else:
+                dense_vals = emb['dense'] if hasattr(emb, 'dense') else emb['dense']
+
+            # Extract sparse vector - handle both Pydantic model and dict
+            if hasattr(emb, 'sparse') and hasattr(emb.sparse, 'indices'):
+                sparse_indices = list(emb.sparse.indices)
+                sparse_values = list(emb.sparse.values)
+            elif isinstance(emb, dict) and 'sparse' in emb:
+                sparse = emb['sparse']
+                sparse_indices = sparse['indices'] if isinstance(sparse, dict) else sparse.indices
+                sparse_values = sparse['values'] if isinstance(sparse, dict) else sparse.values
+            else:
+                # Fallback
+                sparse = emb.get('sparse', {})
+                sparse_indices = sparse.get('indices', [])
+                sparse_values = sparse.get('values', [])
+
             # Build vector with both dense and sparse components
             vector_data: Dict[str, Any] = {
                 "id": id_,
-                "values": emb.dense,
+                "values": dense_vals,
                 "sparse_values": {
-                    "indices": emb.sparse.indices,
-                    "values": emb.sparse.values,
+                    "indices": sparse_indices,
+                    "values": sparse_values,
                 },
                 "metadata": vector_metadata,
             }
@@ -174,16 +196,22 @@ class PineconeService:
             namespace: Namespace for the documents
         """
         embedding_service = get_embedding_service()
-        from mimic_master.models.embeddings import EmbeddingRequest
 
         response = await embedding_service.embed(texts)
 
-        # Extract dense embeddings for backward compatibility
-        dense_embeddings = [emb.dense for emb in response.embeddings]
+        # Convert to plain dicts for Pinecone compatibility
+        embeddings = []
+        for emb in response.embeddings:
+            if hasattr(emb, 'model_dump'):
+                # It's a Pydantic model
+                embeddings.append(emb.model_dump())
+            else:
+                # It's already a dict
+                embeddings.append(emb)
 
         await self.upsert(
             ids=ids,
-            embeddings=response.embeddings,
+            embeddings=embeddings,
             contents=texts,
             metadata=metadata,
             namespace=namespace,
