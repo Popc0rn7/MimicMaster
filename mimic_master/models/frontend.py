@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ImageType(str, Enum):
@@ -48,8 +48,7 @@ class Campaign(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     last_played_at: Optional[datetime] = None
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class CreateCampaignRequest(BaseModel):
@@ -72,8 +71,7 @@ class Session(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 # --- Scene Models ---
@@ -90,8 +88,7 @@ class Scene(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class CreateSceneRequest(BaseModel):
@@ -126,8 +123,7 @@ class Player(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class CreatePlayerRequest(BaseModel):
@@ -136,8 +132,8 @@ class CreatePlayerRequest(BaseModel):
     name: str
     hp_max: int
     hp_current: int
-    status_effects: list[str] = []
-    spell_slots: list[SpellSlot] = []
+    status_effects: list[str] = Field(default_factory=list)
+    spell_slots: list[SpellSlot] = Field(default_factory=list)
 
 
 class UpdatePlayerRequest(BaseModel):
@@ -163,8 +159,7 @@ class NPC(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class CreateNPCRequest(BaseModel):
@@ -200,8 +195,7 @@ class GalleryItem(BaseModel):
     pinned_at: datetime = Field(default_factory=datetime.utcnow)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class CreateGalleryItemRequest(BaseModel):
@@ -231,8 +225,8 @@ class GameState(BaseModel):
 
     session_id: str
     current_scene: Scene
-    players: list[Player] = []
-    npcs: list[NPC] = []
+    players: list[Player] = Field(default_factory=list)
+    npcs: list[NPC] = Field(default_factory=list)
 
 
 # --- Initialize Session Request ---
@@ -244,8 +238,8 @@ class AddPlayerRequest(BaseModel):
     name: str
     hp_max: int
     hp_current: int
-    status_effects: list[str] = []
-    spell_slots: list[dict[str, Any]] = []
+    status_effects: list[str] = Field(default_factory=list)
+    spell_slots: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class InitializeSessionRequest(BaseModel):

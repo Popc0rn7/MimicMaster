@@ -14,6 +14,7 @@ import argparse
 import asyncio
 import json
 import re
+import shutil
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -34,14 +35,57 @@ from mimic_master.models.memory import (
 # Base paths
 BASE_DIR = Path(__file__).parent.parent
 RAW_DIR = BASE_DIR / "knowledge" / "raw"
+USE_DIR = BASE_DIR / "knowledge" / "use"
 
 
 class KnowledgeIndexer:
     """Indexer for D&D knowledge base."""
 
-    def __init__(self, batch_size: int = 32):
+    def __init__(self):
         self.retriever = get_hybrid_knowledge_retriever()
-        self.batch_size = batch_size
+
+    async def ensure_processed_jsonl(self, source_name: str) -> Path:
+        """Ensure `knowledge/use/rag_{source}.jsonl` exists; create it if missing.
+
+        Backward compatible: if legacy `rag_{source}_described.jsonl` exists, migrate it.
+        """
+        processed_path = USE_DIR / f"rag_{source_name}.jsonl"
+        if processed_path.exists():
+            return processed_path
+
+        legacy_path = USE_DIR / f"rag_{source_name}_described.jsonl"
+        if legacy_path.exists():
+            shutil.move(legacy_path, processed_path)
+            return processed_path
+
+        script_path = BASE_DIR / "scripts" / "process_images.py"
+        if not script_path.exists():
+            raise FileNotFoundError(f"Image processing script not found: {script_path}")
+
+        print(
+            f"Processed file missing for '{source_name}', running image processing first..."
+        )
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable,
+            str(script_path),
+            "--source",
+            source_name,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+        stdout, _ = await proc.communicate()
+        if stdout:
+            print(stdout.decode("utf-8", errors="replace"))
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"Image processing failed for source '{source_name}' (exit={proc.returncode})"
+            )
+
+        if not processed_path.exists():
+            raise FileNotFoundError(
+                f"Expected processed JSONL not created: {processed_path}"
+            )
+        return processed_path
 
     def detect_image_in_text(self, text: str) -> Tuple[str, Optional[str]]:
         """
@@ -70,8 +114,19 @@ class KnowledgeIndexer:
         # Try to extract monster name (usually at the beginning)
         # Format: "[IMG:...] Name Type Size Alignment CR"
         lines = text.split("\n")
-        if lines:
-            first_line = lines[0]
+        first_content_line = ""
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            # Skip image description/placeholder lines that may be prepended by image processing
+            if stripped.startswith("[图片描述:") or stripped.startswith("[图片:"):
+                continue
+            first_content_line = stripped
+            break
+
+        if first_content_line:
+            first_line = first_content_line
             # Remove IMG tag
             first_line = re.sub(r"\[IMG:.*?\]", "", first_line).strip()
             parts = first_line.split()
@@ -86,7 +141,9 @@ class KnowledgeIndexer:
                         break
 
                 # Try to find CR
-                cr_match = re.search(r"CR[:\s]*(\d+/\d+|\d+)", first_line, re.IGNORECASE)
+                cr_match = re.search(
+                    r"CR[:\s]*(\d+/\d+|\d+)", first_line, re.IGNORECASE
+                )
                 if cr_match:
                     metadata.cr = cr_match.group(1)
 
@@ -98,7 +155,9 @@ class KnowledgeIndexer:
 
         return metadata
 
-    def parse_rule_data(self, text: str, chapter: str, source: str) -> KnowledgeMetadata:
+    def parse_rule_data(
+        self, text: str, chapter: str, source: str
+    ) -> KnowledgeMetadata:
         """Parse rule/class/spell data from text."""
         metadata = KnowledgeMetadata(
             category=KnowledgeCategory.RULE,
@@ -137,7 +196,7 @@ class KnowledgeIndexer:
 
     async def index_monsters(self, limit: Optional[int] = None) -> int:
         """Index monster data from rag_mm.jsonl."""
-        file_path = RAW_DIR / "rag_mm.jsonl"
+        file_path = await self.ensure_processed_jsonl("mm")
         if not file_path.exists():
             print(f"File not found: {file_path}")
             return 0
@@ -162,8 +221,7 @@ class KnowledgeIndexer:
             processed_text, image_path = self.detect_image_in_text(text)
             if image_path:
                 processed_text = processed_text.replace(
-                    "[图片占位符]",
-                    f"[图片: {image_path}]"
+                    "[图片占位符]", f"[图片: {image_path}]"
                 )
 
             # Parse metadata
@@ -194,13 +252,15 @@ class KnowledgeIndexer:
         print(f"  Indexed {len(ids)} monsters successfully!")
         return len(ids)
 
-    async def index_rules(self, source: str = "phb", limit: Optional[int] = None) -> int:
+    async def index_rules(
+        self, source: str = "phb", limit: Optional[int] = None
+    ) -> int:
         """Index rules from PHB or DMG."""
         if source == "phb":
-            file_path = RAW_DIR / "rag_phb.jsonl"
+            file_path = await self.ensure_processed_jsonl("phb")
             source_book = SourceBook.PHB
         elif source == "dmg":
-            file_path = RAW_DIR / "rag_dmg.jsonl"
+            file_path = await self.ensure_processed_jsonl("dmg")
             source_book = SourceBook.DMG
         else:
             print(f"Unknown source: {source}")
@@ -296,16 +356,10 @@ async def main():
         default=None,
         help="Limit number of entries to index (for testing)",
     )
-    parser.add_argument(
-        "--batch-size",
-        type=int,
-        default=32,
-        help="Batch size for indexing",
-    )
 
     args = parser.parse_args()
 
-    indexer = KnowledgeIndexer(batch_size=args.batch_size)
+    indexer = KnowledgeIndexer()
 
     if args.source == "all":
         await indexer.index_all(limit=args.limit)

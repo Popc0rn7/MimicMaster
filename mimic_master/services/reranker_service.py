@@ -1,14 +1,30 @@
-"""Reranker service with mock and real implementation support."""
+"""Reranker service with mock and Pinecone native implementation support."""
+
+from __future__ import annotations
 
 import httpx
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from mimic_master.config import settings
 from mimic_master.models.reranker import RerankRequest, RerankResponse
 
+if TYPE_CHECKING:
+    from pinecone import Pinecone
+
 
 class RerankerService:
-    """Service for reranking documents using BGE-Reranker-v2-M3 model."""
+    """Service for reranking documents using Pinecone native BGE-Reranker-v2-M3."""
+
+    def __init__(self) -> None:
+        self._pinecone_client: Optional["Pinecone"] = None
+
+    def _get_pinecone_client(self) -> "Pinecone":
+        """Get or create Pinecone client."""
+        if self._pinecone_client is None:
+            from pinecone import Pinecone
+
+            self._pinecone_client = Pinecone(api_key=settings.pinecone_api_key)
+        return self._pinecone_client
 
     async def rerank(
         self,
@@ -30,9 +46,24 @@ class RerankerService:
         Raises:
             httpx.HTTPError: If the external service fails
         """
+        if len(documents) == 0:
+            return RerankResponse(results=[], scores=[])
         if settings.use_mock_reranker:
             return self._mock_rerank(query, documents, top_n)
 
+        if settings.use_pinecone_reranker:
+            return await self._pinecone_rerank(query, documents, top_n)
+
+        # Default: use HTTP endpoint
+        return await self._http_rerank(query, documents, top_n)
+
+    async def _http_rerank(
+        self,
+        query: str,
+        documents: List[str],
+        top_n: Optional[int] = None,
+    ) -> RerankResponse:
+        """Call reranker service via HTTP endpoint."""
         async with httpx.AsyncClient(timeout=30.0) as client:
             payload = {
                 "query": query,
@@ -51,6 +82,35 @@ class RerankerService:
                 results=data["results"],
                 scores=data["scores"],
             )
+
+    async def _pinecone_rerank(
+        self,
+        query: str,
+        documents: List[str],
+        top_n: Optional[int] = None,
+    ) -> RerankResponse:
+        """Call reranker service via Pinecone inference API."""
+        client = self._get_pinecone_client()
+
+        response = client.inference.rerank(
+            model="bge-reranker-v2-m3",
+            query=query,
+            documents=documents,
+            top_n=top_n or len(documents),
+            return_documents=True,
+            parameters={"truncate": "END"},
+        )
+
+        # Parse response - Pinecone returns results in original order with scores
+        results = []
+        scores = []
+        for item in response.data:
+            # Find original index from document text
+            orig_idx = documents.index(item.document.text)
+            results.append(orig_idx)
+            scores.append(item.score)
+
+        return RerankResponse(results=results, scores=scores)
 
     def _mock_rerank(
         self,

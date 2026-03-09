@@ -29,13 +29,16 @@ class Settings:
         if not embed_url and self.provider_base_url:
             embed_url = f"{self.provider_base_url}/embeddings"
         self.embedding_provider_url: str = embed_url or "mock"
+        self.embedding_provider_type: str = os.getenv("EMBEDDING_PROVIDER_TYPE", "http").lower()
         self.embedding_dimension: int = int(os.getenv("EMBEDDING_DIMENSION", "1024"))
+        self.openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
 
-        # Reranker Service Configuration
+        # Reranker Service Configuration (uses Pinecone native inference API)
         rerank_url = os.getenv("RERANKER_PROVIDER_URL", "")
         if not rerank_url and self.provider_base_url:
             rerank_url = f"{self.provider_base_url}/reranker"
         self.reranker_provider_url: str = rerank_url or "mock"
+        self.reranker_provider_type: str = os.getenv("RERANKER_PROVIDER_TYPE", "pinecone").lower()
 
         # Vision Service Configuration
         vision_url = os.getenv("VISION_PROVIDER_URL", "")
@@ -73,12 +76,22 @@ class Settings:
     @property
     def use_mock_embedding(self) -> bool:
         """Check if we should use mock embedding service."""
-        return self.embedding_provider_url == "mock"
+        return self.embedding_provider_type == "mock"
 
     @property
     def use_mock_reranker(self) -> bool:
         """Check if we should use mock reranker service."""
-        return self.reranker_provider_url == "mock"
+        return self.reranker_provider_type == "mock"
+
+    @property
+    def use_pinecone_reranker(self) -> bool:
+        """Check if we should use Pinecone native reranker."""
+        return self.reranker_provider_type == "pinecone"
+
+    @property
+    def use_nvidia_embedding(self) -> bool:
+        """Check if we should use NVIDIA API for embedding."""
+        return self.embedding_provider_type == "nvidia" and bool(self.openai_api_key)
 
     @property
     def use_mock_vision(self) -> bool:

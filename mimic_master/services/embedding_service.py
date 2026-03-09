@@ -1,11 +1,13 @@
 """Embedding service with mock and real implementation support."""
 
+from __future__ import annotations
+
 import httpx
-from typing import List, Dict
+from typing import TYPE_CHECKING, Dict, List, Optional
+from openai import OpenAI
 
 from mimic_master.config import settings
 from mimic_master.models.embeddings import (
-    EmbeddingRequest,
     EmbeddingResponse,
     DenseAndSparseEmbeddings,
     SparseVector,
@@ -17,6 +19,16 @@ class EmbeddingService:
 
     def __init__(self) -> None:
         self._dimension: int = settings.embedding_dimension
+        self._openai_client: Optional["OpenAI"] = None
+
+    def _get_openai_client(self) -> "OpenAI":
+        """Get or create OpenAI client for NVIDIA API."""
+        if self._openai_client is None:
+            self._openai_client = OpenAI(
+                api_key=settings.openai_api_key,
+                base_url="https://integrate.api.nvidia.com/v1",
+            )
+        return self._openai_client
 
     async def embed(self, texts: List[str]) -> EmbeddingResponse:
         """
@@ -34,6 +46,14 @@ class EmbeddingService:
         if settings.use_mock_embedding:
             return self._mock_embed(texts)
 
+        if settings.use_nvidia_embedding:
+            return await self._nvidia_embed(texts)
+
+        # Default: use HTTP endpoint
+        return await self._http_embed(texts)
+
+    async def _http_embed(self, texts: List[str]) -> EmbeddingResponse:
+        """Call embedding service via HTTP endpoint."""
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 settings.embedding_provider_url,
@@ -54,6 +74,31 @@ class EmbeddingService:
                 ],
                 dense_dimension=data.get("dense_dimension", self._dimension),
             )
+
+    async def _nvidia_embed(self, texts: List[str]) -> EmbeddingResponse:
+        """Call embedding service via NVIDIA API (OpenAI-compatible)."""
+        client = self._get_openai_client()
+        response = client.embeddings.create(
+            input=texts,
+            model="baai/bge-m3",
+            encoding_format="float",
+            extra_body={"truncate": "NONE"},
+        )
+
+        # Convert OpenAI response to our format (dense only, no sparse from NVIDIA)
+        embeddings = []
+        for item in response.data:
+            embeddings.append(
+                DenseAndSparseEmbeddings(
+                    dense=item.embedding,
+                    sparse=SparseVector(indices=[], values=[]),
+                )
+            )
+
+        return EmbeddingResponse(
+            embeddings=embeddings,
+            dense_dimension=len(response.data[0].embedding),
+        )
 
     def _mock_embed(self, texts: List[str]) -> EmbeddingResponse:
         """
