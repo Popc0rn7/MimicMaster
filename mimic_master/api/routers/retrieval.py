@@ -1,10 +1,9 @@
 """Retrieval API router."""
 
 from fastapi import APIRouter, HTTPException
-from typing import Optional
 
 from mimic_master.models.retrieval import RetrievalRequest, RetrievalResponse
-from mimic_master.models.embeddings import DenseAndSparseEmbeddings, SparseVector
+from mimic_master.models.embeddings import DenseAndSparseEmbeddings
 from mimic_master.services.pinecone_service import get_pinecone_service
 from mimic_master.services.embedding_service import get_embedding_service
 

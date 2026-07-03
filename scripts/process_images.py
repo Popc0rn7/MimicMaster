@@ -33,7 +33,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from mimic_master.services.vision_service import get_vision_service
 
-
 # Base paths
 BASE_DIR = Path(__file__).parent.parent
 RAW_DIR = BASE_DIR / "knowledge" / "raw"

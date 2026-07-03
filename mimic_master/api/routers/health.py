@@ -16,7 +16,7 @@ async def health_check() -> dict:
         "services": {
             "pinecone": settings.is_pinecone_configured,
             "langsmith": settings.is_langsmith_configured,
-            "embedding_mock": settings.use_mock_embedding,
+            "embedding_provider": settings.embedding_provider_type,
             "reranker_mock": settings.use_mock_reranker,
         },
     }

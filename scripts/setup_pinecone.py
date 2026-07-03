@@ -14,7 +14,7 @@ async def main() -> None:
     """Create Pinecone index."""
     print(f"Creating Pinecone index: {settings.pinecone_index}")
     print(f"Dimension: {settings.embedding_dimension}")
-    print(f"Metric: dotproduct (for hybrid search)")
+    print("Metric: dotproduct (for hybrid search)")
 
     pinecone_service = get_pinecone_service()
 
@@ -22,7 +22,7 @@ async def main() -> None:
     existing_indexes = pinecone_service.client.list_indexes().names()
     if settings.pinecone_index in existing_indexes:
         print(f"\nIndex '{settings.pinecone_index}' already exists.")
-        print(f"Skipping creation.")
+        print("Skipping creation.")
         return
 
     # Create index
@@ -35,7 +35,7 @@ async def main() -> None:
     print("\nIndex created successfully!")
     print(f"Name: {settings.pinecone_index}")
     print(f"Dimension: {settings.embedding_dimension}")
-    print(f"Metric: dotproduct")
+    print("Metric: dotproduct")
 
 
 if __name__ == "__main__":

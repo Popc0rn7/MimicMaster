@@ -26,12 +26,16 @@ async def lifespan(app: FastAPI):
     if settings.is_pinecone_configured:
         print(f"Pinecone configured with index: {settings.pinecone_index}")
     else:
-        print("Pinecone not configured. Set PINECONE_API_KEY and PINECONE_INDEX in .env")
+        print(
+            "Pinecone not configured. Set PINECONE_API_KEY and PINECONE_INDEX in .env"
+        )
 
-    if settings.use_mock_embedding:
-        print("Using mock embedding service")
+    if settings.use_nvidia_embedding:
+        print(f"Using NVIDIA embedding model: {settings.nvidia_embedding_model}")
+    elif settings.use_http_embedding:
+        print(f"Using HTTP embedding service at: {settings.embedding_provider_url}")
     else:
-        print(f"Using embedding service at: {settings.embedding_provider_url}")
+        print(f"Embedding provider not configured: {settings.embedding_provider_type}")
 
     if settings.use_mock_reranker:
         print("Using mock reranker service")

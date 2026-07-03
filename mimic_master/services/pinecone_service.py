@@ -4,9 +4,8 @@ from typing import List, Optional, Dict, Any
 
 from pinecone import Pinecone, ServerlessSpec
 from mimic_master.config import settings
-from mimic_master.models.embeddings import EmbeddingResponse
 from mimic_master.models.retrieval import RetrievedDocument
-from mimic_master.models.embeddings import DenseAndSparseEmbeddings, SparseVector
+from mimic_master.models.embeddings import DenseAndSparseEmbeddings
 
 from mimic_master.services.embedding_service import get_embedding_service
 
@@ -86,27 +85,19 @@ class PineconeService:
                 **metadata[i],
             }
 
-            # Extract dense vector - handle both Pydantic model and dict
-            if hasattr(emb, 'dense'):
+            if isinstance(emb, DenseAndSparseEmbeddings):
                 dense_vals = list(emb.dense)
-            elif isinstance(emb, dict) and 'dense' in emb:
-                dense_vals = emb['dense']
-            else:
-                dense_vals = emb['dense'] if hasattr(emb, 'dense') else emb['dense']
-
-            # Extract sparse vector - handle both Pydantic model and dict
-            if hasattr(emb, 'sparse') and hasattr(emb.sparse, 'indices'):
                 sparse_indices = list(emb.sparse.indices)
                 sparse_values = list(emb.sparse.values)
-            elif isinstance(emb, dict) and 'sparse' in emb:
-                sparse = emb['sparse']
-                sparse_indices = sparse['indices'] if isinstance(sparse, dict) else sparse.indices
-                sparse_values = sparse['values'] if isinstance(sparse, dict) else sparse.values
+            elif isinstance(emb, dict):
+                dense_vals = emb["dense"]
+                sparse = emb.get("sparse", {})
+                sparse_indices = sparse.get("indices", [])
+                sparse_values = sparse.get("values", [])
             else:
-                # Fallback
-                sparse = emb.get('sparse', {})
-                sparse_indices = sparse.get('indices', [])
-                sparse_values = sparse.get('values', [])
+                raise TypeError(
+                    "embeddings must contain DenseAndSparseEmbeddings or dict items"
+                )
 
             # Build vector with both dense and sparse components
             vector_data: Dict[str, Any] = {
@@ -173,7 +164,9 @@ class PineconeService:
                         id=match.id,
                         content=match.metadata.get("content", ""),
                         score=match.score or 0.0,
-                        metadata={k: v for k, v in match.metadata.items() if k != "content"},
+                        metadata={
+                            k: v for k, v in match.metadata.items() if k != "content"
+                        },
                     )
                 )
 
@@ -202,7 +195,7 @@ class PineconeService:
         # Convert to plain dicts for Pinecone compatibility
         embeddings = []
         for emb in response.embeddings:
-            if hasattr(emb, 'model_dump'):
+            if hasattr(emb, "model_dump"):
                 # It's a Pydantic model
                 embeddings.append(emb.model_dump())
             else:

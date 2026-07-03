@@ -7,7 +7,6 @@ Uses only dense vector retrieval (no sparse needed).
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 
-from mimic_master.config import settings
 from mimic_master.services.pinecone_service import get_pinecone_service
 from mimic_master.services.embedding_service import get_embedding_service
 from mimic_master.models.memory import (
@@ -94,7 +93,9 @@ class EpisodicRetriever:
                         session_id=result.metadata.get("session_id", ""),
                         summary=result.content,
                         timestamp=datetime.fromisoformat(
-                            result.metadata.get("timestamp", datetime.utcnow().isoformat())
+                            result.metadata.get(
+                                "timestamp", datetime.utcnow().isoformat()
+                            )
                         ),
                         key_events=result.metadata.get("key_events", []),
                         tags=result.metadata.get("tags", []),
@@ -233,7 +234,9 @@ class EpisodicRetriever:
             session_id=retrieval_result.metadata.get("session_id", ""),
             summary=retrieval_result.content,
             timestamp=datetime.fromisoformat(
-                retrieval_result.metadata.get("timestamp", datetime.utcnow().isoformat())
+                retrieval_result.metadata.get(
+                    "timestamp", datetime.utcnow().isoformat()
+                )
             ),
             key_events=retrieval_result.metadata.get("key_events", []),
             tags=retrieval_result.metadata.get("tags", []),

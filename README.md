@@ -47,17 +47,18 @@ PINECONE_API_KEY=your_api_key
 PINECONE_INDEX=your_index_name
 EMBEDDING_DIMENSION=1024
 
-# Embedding/Reranker 服务
-# 方式一：设置基础 URL（推荐），自动生成 /embeddings 和 /reranker 端点
-PROVIDER_BASE_URL=http://your-server:port
+# Embedding（默认 NVIDIA NIM BGE-M3）
+EMBEDDING_PROVIDER_TYPE=nvidia
+NVIDIA_API_KEY=your_nvidia_api_key
+NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
+NVIDIA_EMBEDDING_MODEL=baai/bge-m3
 
-# 方式二：分别指定完整 URL
+# 可选：使用本地/内网 HTTP embedding endpoint
+# EMBEDDING_PROVIDER_TYPE=http
 # EMBEDDING_PROVIDER_URL=http://your-server:port/embeddings
-# RERANKER_PROVIDER_URL=http://your-server:port/reranker
 
-# 设为 "mock" 使用本地模拟模式（无需服务端）
-EMBEDDING_PROVIDER_URL=mock
-RERANKER_PROVIDER_URL=mock
+# Reranker
+RERANKER_PROVIDER_TYPE=pinecone
 
 # LangSmith 追踪（可选）
 LANGSMITH_API_KEY=your_langsmith_key
@@ -137,6 +138,15 @@ curl -X POST "http://localhost:8000/api/v1/retrieval/upsert?namespace=rules" \
 | `monsters` | 怪物图鉴和数据 |
 | `spells` | 法术描述和效果 |
 
+## 知识数据管理
+
+- `knowledge/raw/`: 原始 JSONL 数据。
+- `knowledge/use/`: 索引脚本读取的处理后 JSONL 数据。
+- `knowledge/enhanced/`: 元数据增强后的中间产物。
+- `knowledge/external/`: 记录或临时放置本地缺失的外部原数据；不要提交版权敏感原文或大文件。
+
+索引前确认 `knowledge/use/rag_{mm,phb,dmg}.jsonl` 存在且非空。缺失时先恢复外部原数据，再运行 `scripts/process_images.py` 或对应转换脚本生成处理文件。
+
 ## 项目结构
 
 ```
@@ -147,7 +157,7 @@ mimic-master/
 │   ├── core/             # DMAgent, DandDRetriever
 │   ├── memory/           # 三层记忆架构
 │   │   ├── state_memory.py        # 状态与工作记忆
-│   │   ├── knowledge_retriever.py # 静态知识检索（混合搜索）
+│   │   ├── knowledge_retriever.py # 静态知识检索（服务层 + Pinecone）
 │   │   ├── episodic_retriever.py  # 情节记忆
 │   │   ├── intent_classifier.py    # 意图分类
 │   │   └── assembler.py          # 上下文组装器
@@ -162,7 +172,7 @@ mimic-master/
 ## 开发规范
 
 - **类型提示**: 所有函数必须有参数和返回值类型提示
-- **单例模式**: Embedding 和 Reranker 模型单例加载，避免重复加载
+- **Provider 管理**: 默认使用 NVIDIA embedding API；本地扩展只通过 HTTP endpoint
 - **容错处理**: 所有外部调用必须有异常捕获
 - **环境管理**: 使用 `.env` 管理配置，不硬编码
 
@@ -177,7 +187,7 @@ uv run pytest tests/ -v
 # 只运行特定模块的测试
 uv run pytest tests/test_embedding.py tests/test_reranker.py -v
 
-# 跳过需要外部服务的测试（只运行 mock 模式测试）
+# 跳过需要外部服务的测试（只运行 fake/provider 单元测试）
 uv run pytest tests/test_agent.py tests/test_embedding.py tests/test_reranker.py -v
 
 # 运行测试并显示详细信息

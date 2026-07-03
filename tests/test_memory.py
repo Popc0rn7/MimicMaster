@@ -7,7 +7,14 @@ from mimic_master.memory import (
     get_intent_classifier,
     get_context_assembler,
 )
-from mimic_master.models.memory import Intent, Episode
+from mimic_master.models.memory import Episode
+
+
+@pytest.fixture(autouse=True)
+def reset_state_memory():
+    """Keep singleton state memory isolated between tests."""
+    memory = get_state_memory()
+    memory.reset_state()
 
 
 @pytest.mark.asyncio
@@ -131,7 +138,7 @@ async def test_episodic_memory():
     """Test episodic memory retrieval."""
     from mimic_master.memory import get_episodic_retriever
 
-    retriever = get_episodic_retriever()
+    get_episodic_retriever()
 
     # Create a test episode
     episode = Episode(

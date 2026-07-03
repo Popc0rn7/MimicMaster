@@ -2,7 +2,11 @@
 
 from mimic_master.models.embeddings import EmbeddingRequest, EmbeddingResponse
 from mimic_master.models.reranker import RerankRequest, RerankResponse
-from mimic_master.models.retrieval import RetrievalRequest, RetrievalResponse, RetrievedDocument
+from mimic_master.models.retrieval import (
+    RetrievalRequest,
+    RetrievalResponse,
+    RetrievedDocument,
+)
 from mimic_master.models.agent import AgentRequest, AgentResponse
 from mimic_master.models.frontend import (
     Campaign,

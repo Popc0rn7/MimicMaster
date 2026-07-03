@@ -12,7 +12,7 @@ Intents:
 """
 
 from enum import Enum
-from typing import List, Dict, Set, Optional
+from typing import List, Dict, Optional
 import re
 
 from mimic_master.models.memory import Intent
@@ -32,14 +32,26 @@ class IntentType(str, Enum):
 _INTENT_PATTERNS: Dict[IntentType, List[Dict[str, str]]] = {
     IntentType.QUERY_RULES: [
         {"keywords": "rule,rules,how do,how to,what is,what are", "weight": 1.0},
-        {"keywords": "spell,casting,caster,slot,slot,attack,damage,save,ability,score", "weight": 0.8},
-        {"keywords": "advantage,disadvantage,proficiency,modifier,bonus,penalty", "weight": 0.8},
-        {"keywords": "class,subclass,level,feat,skill,tool,weapon,armor", "weight": 0.7},
+        {
+            "keywords": "spell,casting,caster,slot,slot,attack,damage,save,ability,score",
+            "weight": 0.8,
+        },
+        {
+            "keywords": "advantage,disadvantage,proficiency,modifier,bonus,penalty",
+            "weight": 0.8,
+        },
+        {
+            "keywords": "class,subclass,level,feat,skill,tool,weapon,armor",
+            "weight": 0.7,
+        },
         {"keywords": "condition,status,effect,duration,concentration", "weight": 0.7},
         {"keywords": "dc,difficulty,check,roll,throw,dice", "weight": 0.6},
     ],
     IntentType.PROCEED_STORY: [
-        {"keywords": "what happens next,then what,where do we go,continue,proceed", "weight": 1.0},
+        {
+            "keywords": "what happens next,then what,where do we go,continue,proceed",
+            "weight": 1.0,
+        },
         {"keywords": "describe,look around,investigate,search,examine", "weight": 0.8},
         {"keywords": "enter,go to,move,towards,approach,head", "weight": 0.7},
         {"keywords": "rest,take a break,long rest,short rest", "weight": 0.6},
@@ -52,7 +64,10 @@ _INTENT_PATTERNS: Dict[IntentType, List[Dict[str, str]]] = {
         {"keywords": "action,bonus action,reaction,move", "weight": 0.6},
     ],
     IntentType.RECALL_HISTORY: [
-        {"keywords": "remember,recall,what did we,what happened,last session,before", "weight": 1.0},
+        {
+            "keywords": "remember,recall,what did we,what happened,last session,before",
+            "weight": 1.0,
+        },
         {"keywords": "previous,past,earlier,ago", "weight": 0.8},
         {"keywords": "met,found,discovered,learned", "weight": 0.6},
     ],
@@ -92,7 +107,9 @@ class IntentClassifier:
             for pattern in patterns:
                 keywords = pattern["keywords"].split(",")
                 # Build a regex pattern that matches any of the keywords
-                regex_pattern = r"\b(" + "|".join(re.escape(k.strip()) for k in keywords) + r")\b"
+                regex_pattern = (
+                    r"\b(" + "|".join(re.escape(k.strip()) for k in keywords) + r")\b"
+                )
                 compiled.append((regex_pattern, pattern["weight"]))
             self._compiled_patterns[intent_type] = compiled
 
@@ -132,7 +149,8 @@ class IntentClassifier:
 
         # Handle tie-breaker for similar scores
         close_intents = [
-            intent for intent, score in scores.items()
+            intent
+            for intent, score in scores.items()
             if abs(score - best_intent[1]) < 0.01 and score > 0.05
         ]
 

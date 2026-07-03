@@ -4,17 +4,14 @@ The central orchestrator that assembles the final context for the LLM.
 Coordinates between all memory modules based on intent.
 """
 
-from typing import Optional, List
+from typing import Optional
 
 from mimic_master.memory.state_memory import StateMemory, get_state_memory
 from mimic_master.memory.knowledge_retriever import (
     HybridKnowledgeRetriever,
-    get_hybrid_knowledge_retriever,
 )
 from mimic_master.memory.episodic_retriever import (
     EpisodicRetriever,
-    Episode,
-    get_episodic_retriever,
 )
 from mimic_master.memory.intent_classifier import (
     IntentClassifier,
@@ -23,7 +20,6 @@ from mimic_master.memory.intent_classifier import (
 )
 from mimic_master.models.memory import (
     AssembledContext,
-    RetrievalResult,
 )
 
 # System prompt template
@@ -126,10 +122,7 @@ class ContextAssembler:
                 knowledge_context = await self._retrieve_knowledge(user_query)
 
         # Episodic retrieval
-        if (
-            force_episodes
-            or self._intent_classifier.should_retrieve_episodes(intent)
-        ):
+        if force_episodes or self._intent_classifier.should_retrieve_episodes(intent):
             if self._episodic_retriever:
                 episodic_context = await self._retrieve_episodes(user_query, session_id)
 
@@ -221,7 +214,11 @@ Stay in character as the Dungeon Master but keep things light.""",
 
             lines = ["## Relevant Rules & Information\n"]
             for i, result in enumerate(results, 1):
-                content = result.content[:500] + "..." if len(result.content) > 500 else result.content
+                content = (
+                    result.content[:500] + "..."
+                    if len(result.content) > 500
+                    else result.content
+                )
                 lines.append(f"### Source {i}")
                 lines.append(f"{content}")
                 if result.metadata:

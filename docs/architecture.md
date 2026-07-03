@@ -16,13 +16,13 @@ Mimic Master 是一个为《龙与地下城 (D&D 5E)》地下城主 (DM) 辅助�
         ┌─────────────────────┼─────────────────────┐
         ▼                     ▼                     ▼
 ┌───────────────┐    ┌───────────────┐    ┌───────────────┐
-│  Memory       │    │   Services   │    │   Core        │
-│  Module       │    │   Layer      │    │   Logic       │
+│  Memory       │    │   Services    │    │   Core        │
+│  Module       │    │   Layer       │    │   Logic       │
 ├───────────────┤    ├───────────────┤    ├───────────────┤
-│ - Knowledge   │    │ - Pinecone   │    │ - Retriever   │
-│   Retriever   │    │ - Embedding  │    │ - Agent       │
-│ - Episodic    │    │ - Reranker  │    │ - Assembler   │
-│ - State       │    │ - MongoDB    │    │               │
+│ - Knowledge   │    │ - Pinecone    │    │ - Retriever   │
+│   Retriever   │    │ - Embedding   │    │ - Agent       │
+│ - Episodic    │    │ - Reranker    │    │ - Assembler   │
+│ - State       │    │ - MongoDB     │    │               │
 └───────────────┘    └───────────────┘    └───────────────┘
                               │
                               ▼
@@ -110,15 +110,15 @@ class KnowledgeMetadata:
 ### 3.2 Embedding Service
 
 负责文本向量化：
-- 本地模式：FlagEmbedding (BGE-M3)
-- 远程模式：HTTP API 调用
-- Mock 模式：哈希生成伪向量
+- 默认模式：NVIDIA NIM `baai/bge-m3`
+- 本地扩展：HTTP API endpoint（由外部服务提供 `/embeddings`）
+- Sparse 补充：Pinecone inference sparse embedding，失败时降级为空 sparse
 
 ### 3.3 Reranker Service
 
 负责结果重排序：
-- 本地模式：FlagReranker (BGE-Reranker-v2-M3)
-- 远程模式：HTTP API 调用
+- 默认模式：Pinecone native reranker
+- 本地扩展：HTTP API endpoint
 - Mock 模式：跳过重排序
 
 ---
@@ -195,11 +195,18 @@ PINECONE_API_KEY=xxx
 PINECONE_INDEX=mimic-rules-prod
 
 # Embedding
-EMBEDDING_PROVIDER_URL=http://192.168.1.x:8000/embeddings
+EMBEDDING_PROVIDER_TYPE=nvidia
+NVIDIA_API_KEY=xxx
+NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
+NVIDIA_EMBEDDING_MODEL=baai/bge-m3
 EMBEDDING_DIMENSION=1024
 
+# Optional local/self-hosted provider
+# EMBEDDING_PROVIDER_TYPE=http
+# EMBEDDING_PROVIDER_URL=http://192.168.1.x:8000/embeddings
+
 # Reranker
-RERANKER_PROVIDER_URL=http://192.168.1.x:8000/reranker
+RERANKER_PROVIDER_TYPE=pinecone
 
 # Namespace (可选)
 RULES_NAMESPACE=rules
@@ -230,12 +237,11 @@ dependencies = [
     "pydantic>=2.5.0",
     "httpx>=0.26.0",
     "python-dotenv>=1.0.0",
+    "openai>=2.26.0",
 ]
 
 # 可选依赖
 optional-dependencies = {
-    "embedding": ["FlagEmbedding>=1.2.0"],
-    "reranker": ["FlagEmbedding>=1.2.0"],
     "mongodb": ["motor>=3.3.0"],
     "langsmith": ["langsmith>=0.1.0"],
 }

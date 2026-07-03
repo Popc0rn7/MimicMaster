@@ -14,14 +14,18 @@ dependencies = [
     "uvicorn>=0.34.0",
     "numpy>=2.0.0",
     "motor>=3.6.0",
+    "langchain>=1.2.10",
+    "langgraph>=0.2.0",
+    "langgraph-checkpoint-sqlite>=2.0.0",
+    "openai>=2.26.0",
 ]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",
     "black>=25.0.0",

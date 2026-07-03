@@ -19,7 +19,9 @@ class RetrievalRequest(BaseModel):
     """Request model for retrieval."""
 
     query: str = Field(..., description="Query text")
-    top_k: int = Field(default=10, description="Number of results to return", ge=1, le=100)
+    top_k: int = Field(
+        default=10, description="Number of results to return", ge=1, le=100
+    )
     filter: Optional[dict] = Field(default=None, description="Metadata filter")
     namespace: str = Field(default="", description="Pinecone namespace")
     sparse_vector: Optional[SparseVector] = Field(

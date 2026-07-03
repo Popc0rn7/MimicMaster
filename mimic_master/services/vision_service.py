@@ -5,7 +5,7 @@ import httpx
 from pathlib import Path
 
 from mimic_master.config import settings
-from mimic_master.models.vision import ImageDescription, VisionRequest
+from mimic_master.models.vision import ImageDescription
 
 IMG_DIR = Path(settings.base_dir) / "knowledge" / "raw" / "img"
 

@@ -116,9 +116,6 @@ class DMAgent:
         Returns:
             Generated response
         """
-        # Format context for LLM
-        prompt = self._assembler.format_for_llm(context)
-
         # Placeholder: In production, integrate with Claude or other LLM
         return (
             "As your Dungeon Master, I understand your question. "

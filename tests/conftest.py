@@ -2,7 +2,6 @@
 
 import pytest
 import os
-from pathlib import Path
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -11,7 +10,8 @@ def setup_test_environment():
     # Clear and set test environment variables
     os.environ["PINECONE_INDEX"] = "test-index"
     os.environ["EMBEDDING_DIMENSION"] = "1024"
-    os.environ["EMBEDDING_PROVIDER_URL"] = "mock"
+    os.environ["EMBEDDING_PROVIDER_TYPE"] = "http"
+    os.environ["EMBEDDING_PROVIDER_URL"] = "http://localhost:9999/embeddings"
     os.environ["RERANKER_PROVIDER_URL"] = "mock"
 
     # Clear any existing API keys
@@ -20,6 +20,7 @@ def setup_test_environment():
     # Force settings reimport
     from mimic_master import config
     import importlib
+
     importlib.reload(config)
 
     # Yield control to tests

@@ -6,7 +6,7 @@ import httpx
 from typing import TYPE_CHECKING, List, Optional
 
 from mimic_master.config import settings
-from mimic_master.models.reranker import RerankRequest, RerankResponse
+from mimic_master.models.reranker import RerankResponse
 
 if TYPE_CHECKING:
     from pinecone import Pinecone

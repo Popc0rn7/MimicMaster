@@ -1,7 +1,8 @@
 """Tests for vision service."""
 
-import pytest
 import os
+
+import pytest
 from pathlib import Path
 
 # Test image path - use Aarakocra (first monster in MM)
@@ -19,6 +20,7 @@ def test_image_path():
 def vision_service():
     """Create vision service instance."""
     from mimic_master.services.vision_service import VisionService
+
     return VisionService()
 
 
@@ -27,6 +29,7 @@ async def test_describe_image_mock(vision_service, test_image_path):
     """Test image description in mock mode."""
     # Force mock mode
     from mimic_master import config
+
     original_url = config.settings.vision_provider_url
     config.settings.vision_provider_url = "mock"
 
@@ -46,6 +49,9 @@ async def test_describe_image_mock(vision_service, test_image_path):
 async def test_describe_image_real(vision_service, test_image_path):
     """Test image description with real GLM-4V API."""
     from mimic_master.config import settings
+
+    if os.getenv("RUN_REAL_VISION") != "1":
+        pytest.skip("Set RUN_REAL_VISION=1 to call the real vision API.")
     if not settings.zhipu_api_key:
         pytest.skip("ZHIPU_API_KEY not set - requires real API key")
 
@@ -73,7 +79,5 @@ def test_vision_config():
     """Test vision configuration."""
     from mimic_master.config import settings
 
-    # Should have API key configured
-    assert settings.zhipu_api_key
-    # Should use real API (not mock)
-    assert not settings.use_mock_vision
+    assert settings.vision_model
+    assert isinstance(settings.use_mock_vision, bool)

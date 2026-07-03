@@ -2,9 +2,7 @@
 
 import pytest
 
-from mimic_master.config import settings
-from mimic_master.services.reranker_service import RerankerService, get_reranker_service
-from mimic_master.models.reranker import RerankResponse
+from mimic_master.services.reranker_service import RerankerService
 
 
 @pytest.fixture
@@ -15,7 +13,7 @@ def reranker_service():
 
 @pytest.mark.asyncio
 async def test_reranker_basic(reranker_service):
-    """Test basic reranking using mock."""
+    """Test basic reranking."""
     query = "What is the damage for Fireball?"
     documents = [
         "Fireball is a 3rd-level evocation spell that deals 8d6 fire damage.",
@@ -23,7 +21,6 @@ async def test_reranker_basic(reranker_service):
         "Shield grants +5 AC to the caster.",
     ]
 
-    # Use mock directly to avoid external API calls
     response = await reranker_service.rerank(query, documents, top_n=2)
 
     assert len(response.results) == 2
@@ -35,8 +32,8 @@ async def test_reranker_basic(reranker_service):
 
 
 @pytest.mark.asyncio
-async def test_reranker_mock(reranker_service):
-    """Test reranking without top_n (returns all results) using mock."""
+async def test_reranker_all_results(reranker_service):
+    """Test reranking without top_n (returns all results)."""
     query = "evocation spells"
     documents = [
         "Fireball is a 3rd-level evocation spell.",
@@ -53,8 +50,7 @@ async def test_reranker_mock(reranker_service):
 
 @pytest.mark.asyncio
 async def test_reranker_empty(reranker_service):
-    """Test reranking with empty document list using mock."""
-
+    """Test reranking with empty document list."""
     response = await reranker_service.rerank("test query", [], top_n=3)
 
     assert len(response.results) == 0
@@ -63,7 +59,7 @@ async def test_reranker_empty(reranker_service):
 
 @pytest.mark.asyncio
 async def test_reranker_top_n_larger_than_docs(reranker_service):
-    """Test when top_n is larger than number of documents using mock."""
+    """Test when top_n is larger than number of documents."""
     query = "test"
     documents = ["doc1", "doc2"]
 
@@ -77,13 +73,13 @@ async def test_reranker_top_n_larger_than_docs(reranker_service):
 @pytest.mark.asyncio
 async def test_reranker_consistency(reranker_service):
     """Test that same inputs produce same outputs in mock mode."""
+
     query = "fireball damage"
     documents = [
         "Fireball deals 8d6 fire damage.",
         "Magic Missile deals 3d4 force damage.",
     ]
 
-    # Use mock directly for consistency test
     response1 = await reranker_service.rerank(query, documents)
     response2 = await reranker_service.rerank(query, documents)
 

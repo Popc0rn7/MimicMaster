@@ -2,7 +2,7 @@
 
 import pytest
 
-from mimic_master.core import DMAgent, DMAgentBuilder
+from mimic_master.core import DMAgentBuilder
 
 
 @pytest.mark.asyncio
@@ -41,9 +41,7 @@ async def test_agent_process_with_context():
 @pytest.mark.asyncio
 async def test_agent_builder():
     """Test agent builder pattern."""
-    agent = (DMAgentBuilder()
-              .with_model("claude-3-opus")
-              .build())
+    agent = DMAgentBuilder().with_model("claude-3-opus").build()
 
     assert agent.model_name == "claude-3-opus"
 

@@ -46,7 +46,9 @@ async def _create_indexes() -> None:
     await _database.scenes.create_index("session_id")
 
     # Dialogue history indexes
-    await _database.dialogue_history.create_index([("session_id", 1), ("timestamp", -1)])
+    await _database.dialogue_history.create_index(
+        [("session_id", 1), ("timestamp", -1)]
+    )
 
     # Gallery indexes
     await _database.gallery.create_index("user_id")

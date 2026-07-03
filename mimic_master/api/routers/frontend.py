@@ -11,21 +11,15 @@ from pymongo.errors import DuplicateKeyError
 
 from mimic_master.database.mongodb import get_database
 from mimic_master.models.frontend import (
-    AddPlayerRequest,
-    Campaign,
     CampaignStatus,
     CreateCampaignRequest,
     CreateGalleryItemRequest,
     CreateNPCRequest,
     CreatePlayerRequest,
     CreateSceneRequest,
-    GalleryItem,
     GallerySource,
     ImageType,
     InitializeSessionRequest,
-    NPC,
-    Player,
-    Scene,
     UpdateGalleryItemRequest,
     UpdateNPCRequest,
     UpdatePlayerRequest,
@@ -63,7 +57,13 @@ async def get_campaigns(
         query["status"] = status.value
 
     total = await db.campaigns.count_documents(query)
-    campaigns = await db.campaigns.find(query).sort("updated_at", -1).skip(offset).limit(limit).to_list(limit)
+    campaigns = (
+        await db.campaigns.find(query)
+        .sort("updated_at", -1)
+        .skip(offset)
+        .limit(limit)
+        .to_list(limit)
+    )
 
     return {
         "campaigns": [serialize_doc(c) for c in campaigns],
@@ -132,9 +132,13 @@ async def get_campaign(campaign_id: str) -> dict:
 
     if sessions:
         active_session = sessions[0]  # Use most recent session
-        players = await db.players.find({"session_id": active_session["_id"]}).to_list(10)
+        players = await db.players.find({"session_id": active_session["_id"]}).to_list(
+            10
+        )
         scenes = await db.scenes.find({"session_id": active_session["_id"]}).to_list(5)
-        dialogue_count = await db.dialogue_history.count_documents({"session_id": active_session["_id"]})
+        dialogue_count = await db.dialogue_history.count_documents(
+            {"session_id": active_session["_id"]}
+        )
 
     return {
         "campaign": serialize_doc(campaign),
@@ -350,7 +354,9 @@ async def delete_player(session_id: str, player_name: str) -> dict:
     """Remove a player from the session."""
     db = get_database()
 
-    result = await db.players.delete_one({"session_id": session_id, "name": player_name})
+    result = await db.players.delete_one(
+        {"session_id": session_id, "name": player_name}
+    )
 
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Player not found")
@@ -435,7 +441,13 @@ async def get_gallery(
         query["type"] = type.value
 
     total = await db.gallery.count_documents(query)
-    items = await db.gallery.find(query).sort("pinned_at", -1).skip(offset).limit(limit).to_list(limit)
+    items = (
+        await db.gallery.find(query)
+        .sort("pinned_at", -1)
+        .skip(offset)
+        .limit(limit)
+        .to_list(limit)
+    )
 
     return {
         "items": [serialize_doc(i) for i in items],
@@ -458,7 +470,9 @@ async def create_gallery_item(
         "name": request.name,
         "type": request.type.value if request.type else ImageType.OTHER.value,
         "description": request.description,
-        "source": request.source.value if request.source else GallerySource.UPLOAD.value,
+        "source": (
+            request.source.value if request.source else GallerySource.UPLOAD.value
+        ),
         "message_id": request.message_id,
         "pinned_at": datetime.utcnow(),
         "created_at": datetime.utcnow(),

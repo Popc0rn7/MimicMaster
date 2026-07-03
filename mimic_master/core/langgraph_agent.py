@@ -9,9 +9,8 @@ from typing import Optional
 from typing_extensions import TypedDict
 
 from langgraph.graph import StateGraph, END
-from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.sqlite import SqliteSaver
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.tools import tool
 
 from mimic_master.memory.state_memory import StateMemory, get_state_memory
@@ -29,12 +28,12 @@ from mimic_master.memory.intent_classifier import (
 )
 from mimic_master.models.memory import GameState
 
-
 # ============== Agent State ==============
 
 
 class AgentState(TypedDict):
     """LangGraph Agent 状态类型定义."""
+
     messages: list
     game_state: Optional[GameState]
     intent: Optional[str]
@@ -230,27 +229,6 @@ class LangGraphDMAgent:
     def _build_graph(self) -> StateGraph:
         """构建 LangGraph 状态流."""
 
-        # System prompt
-        SYSTEM_PROMPT = """You are an experienced Dungeon Master for Dungeons & Dragons 5th Edition.
-
-## Your Role
-- Guide players through an immersive and engaging D&D adventure
-- Enforce game rules fairly while maintaining narrative flow
-- Be descriptive and evocative when describing scenes
-- Balance challenge and fun for the players
-
-## Available Tools
-- retrieve_rules: 检索 D&D 规则 (用于规则、法术、怪物等问题)
-- retrieve_episodes: 检索历史事件 (用于过去发生的事)
-
-## Guidelines
-- Only use tools when necessary (don't retrieve if not needed)
-- Be helpful and clear about rules when asked
-- Use sensory details in descriptions
-- Maintain consistency with the story
-- Stay in character as the Dungeon Master
-"""
-
         def should_retrieve(state: AgentState) -> AgentState:
             """判断是否需要检索."""
             query = (
@@ -286,12 +264,8 @@ class LangGraphDMAgent:
 
             if tasks:
                 results = await asyncio.gather(*tasks)
-                knowledge = (
-                    results[0] if state.get("should_retrieve_knowledge") else ""
-                )
-                episodic = (
-                    results[1] if state.get("should_retrieve_episodes") else ""
-                )
+                knowledge = results[0] if state.get("should_retrieve_knowledge") else ""
+                episodic = results[1] if state.get("should_retrieve_episodes") else ""
                 state["knowledge_context"] = knowledge
                 state["episodic_context"] = episodic
             return state
@@ -319,7 +293,9 @@ class LangGraphDMAgent:
 
         # 使用条件边: 根据 should_retrieve_knowledge 判断
         def route_after_intent(state: AgentState) -> str:
-            if state.get("should_retrieve_knowledge") or state.get("should_retrieve_episodes"):
+            if state.get("should_retrieve_knowledge") or state.get(
+                "should_retrieve_episodes"
+            ):
                 return "retrieve"
             return "generate"
 

@@ -61,10 +61,15 @@ class DandDRetriever:
         # Generate query embedding
         embedding_response = await self._embedding.embed([query])
         query_embedding = embedding_response.embeddings[0]
+        sparse_vector = {
+            "indices": query_embedding.sparse.indices,
+            "values": query_embedding.sparse.values,
+        }
 
         # Query Pinecone
         results = await self._pinecone.query(
-            query_embedding=query_embedding,
+            query_embedding=query_embedding.dense,
+            sparse_vector=sparse_vector,
             top_k=top_k,
             filter_dict=filters,
             namespace=namespace,

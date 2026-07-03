@@ -5,9 +5,8 @@
 
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
-from typing import Optional
 
-from langgraph.graph import StateGraph, END
+from langgraph.graph import StateGraph
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import HumanMessage, AIMessage
 
@@ -15,12 +14,11 @@ from mimic_master.core.langgraph_agent import (
     AgentState,
     LangGraphDMAgent,
     LangGraphMemory,
-    create_langgraph_agent,
 )
 from mimic_master.memory.state_memory import StateMemory
 
-
 # ============== Fixtures ==============
+
 
 @pytest.fixture
 def mock_llm():
@@ -49,6 +47,7 @@ def checkpointer():
 
 
 # ============== AgentState Tests ==============
+
 
 def make_agent_state(**kwargs) -> AgentState:
     """创建 AgentState 的辅助函数."""
@@ -98,6 +97,7 @@ class TestAgentState:
 
 # ============== LangGraphMemory Tests ==============
 
+
 class TestLangGraphMemory:
     """LangGraphMemory 测试."""
 
@@ -126,7 +126,9 @@ class TestLangGraphMemory:
 
         mock_state_memory.get_dialogue_history.return_value = [
             DialogueTurn(role="user", content="Hello", timestamp=datetime.now()),
-            DialogueTurn(role="assistant", content="Hi there", timestamp=datetime.now()),
+            DialogueTurn(
+                role="assistant", content="Hi there", timestamp=datetime.now()
+            ),
         ]
         memory = LangGraphMemory(mock_state_memory)
         messages = memory.to_langgraph_messages()
@@ -139,6 +141,7 @@ class TestLangGraphMemory:
 
 
 # ============== LangGraphDMAgent Tests ==============
+
 
 class TestLangGraphDMAgent:
     """LangGraph DM Agent 测试."""
@@ -173,12 +176,13 @@ class TestLangGraphDMAgent:
     def test_compile_with_checkpointer(self, mock_llm, checkpointer):
         """测试编译带 checkpointer 的 agent."""
         agent = LangGraphDMAgent(llm=mock_llm, checkpointer=checkpointer)
-        compiled = agent.compile()
 
+        assert agent.compile() is not None
         assert agent._agent_executor is not None
 
 
 # ============== Integration Tests ==============
+
 
 class TestAgentWorkflow:
     """Agent 工作流集成测试."""
@@ -211,6 +215,7 @@ class TestAgentWorkflow:
 
 # ============== Factory Tests ==============
 
+
 class TestFactory:
     """工厂函数测试."""
 
@@ -230,6 +235,7 @@ class TestFactory:
 
 
 # ============== State Transitions Tests ==============
+
 
 class TestStateTransitions:
     """状态转换测试."""

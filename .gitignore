@@ -44,4 +44,9 @@ Thumbs.db
 
 # db
 mongodb/
-knowledge/raw/
+knowledge/**/*.jsonl
+knowledge/raw/**
+knowledge/enhanced/**
+knowledge/use/**
+!knowledge/**/
+!knowledge/external/README.md

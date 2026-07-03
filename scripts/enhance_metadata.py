@@ -229,10 +229,10 @@ def extract_monster_stats(text: str) -> Dict[str, Any]:
     langs = []
     lang_match = re.search(r"语言[:\s]*(.+?)(?=特性|动作|$)", text, re.DOTALL)
     if lang_match:
-        for l in re.split(r"[,，]", lang_match.group(1).strip()):
-            l = l.strip()
-            if l:
-                langs.append(l)
+        for language in re.split(r"[,，]", lang_match.group(1).strip()):
+            language = language.strip()
+            if language:
+                langs.append(language)
     if langs:
         result["languages"] = langs
 

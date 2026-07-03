@@ -1,10 +1,11 @@
-"""Embedding service with mock and real implementation support."""
+"""Embedding service with NVIDIA and self-hosted HTTP provider support."""
 
 from __future__ import annotations
 
 import httpx
 from typing import TYPE_CHECKING, Dict, List, Optional
 from openai import OpenAI
+from openai.types import Embedding
 
 from mimic_master.config import settings
 from mimic_master.models.embeddings import (
@@ -13,22 +14,38 @@ from mimic_master.models.embeddings import (
     SparseVector,
 )
 
+if TYPE_CHECKING:
+    from pinecone import Pinecone
+
 
 class EmbeddingService:
     """Service for generating text embeddings using BGE-M3 model."""
 
     def __init__(self) -> None:
         self._dimension: int = settings.embedding_dimension
-        self._openai_client: Optional["OpenAI"] = None
+        self._nvidia_client: Optional["OpenAI"] = None
+        self._pinecone_client: Optional["Pinecone"] = None
 
-    def _get_openai_client(self) -> "OpenAI":
-        """Get or create OpenAI client for NVIDIA API."""
-        if self._openai_client is None:
-            self._openai_client = OpenAI(
-                api_key=settings.openai_api_key,
-                base_url="https://integrate.api.nvidia.com/v1",
+    def _get_nvidia_client(self) -> "OpenAI":
+        """Get or create OpenAI-compatible client for NVIDIA NIM."""
+        if not settings.nvidia_api_key:
+            raise RuntimeError(
+                "NVIDIA embedding is configured but NVIDIA_API_KEY is not set."
             )
-        return self._openai_client
+        if self._nvidia_client is None:
+            self._nvidia_client = OpenAI(
+                api_key=settings.nvidia_api_key,
+                base_url=settings.nvidia_base_url,
+            )
+        return self._nvidia_client
+
+    def _get_pinecone_client(self) -> "Pinecone":
+        """Get or create Pinecone client for sparse embeddings."""
+        if self._pinecone_client is None:
+            from pinecone import Pinecone
+
+            self._pinecone_client = Pinecone(api_key=settings.pinecone_api_key)
+        return self._pinecone_client
 
     async def embed(self, texts: List[str]) -> EmbeddingResponse:
         """
@@ -43,17 +60,20 @@ class EmbeddingService:
         Raises:
             httpx.HTTPError: If the external service fails
         """
-        if settings.use_mock_embedding:
-            return self._mock_embed(texts)
-
-        if settings.use_nvidia_embedding:
+        if settings.embedding_provider_type == "nvidia":
             return await self._nvidia_embed(texts)
 
-        # Default: use HTTP endpoint
-        return await self._http_embed(texts)
+        if settings.use_http_embedding:
+            return await self._http_embed(texts)
+
+        raise ValueError("Unsupported EMBEDDING_PROVIDER_TYPE. Use 'nvidia' or 'http'.")
 
     async def _http_embed(self, texts: List[str]) -> EmbeddingResponse:
         """Call embedding service via HTTP endpoint."""
+        if not settings.embedding_provider_url:
+            raise RuntimeError(
+                "HTTP embedding provider requires EMBEDDING_PROVIDER_URL."
+            )
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 settings.embedding_provider_url,
@@ -76,29 +96,67 @@ class EmbeddingService:
             )
 
     async def _nvidia_embed(self, texts: List[str]) -> EmbeddingResponse:
-        """Call embedding service via NVIDIA API (OpenAI-compatible)."""
-        client = self._get_openai_client()
-        response = client.embeddings.create(
-            input=texts,
-            model="baai/bge-m3",
-            encoding_format="float",
-            extra_body={"truncate": "NONE"},
-        )
+        """Call NVIDIA for dense embeddings and Pinecone inference for sparse."""
+        dense_embeddings = await self._nvidia_dense_embed(texts)
+        sparse_embeddings = await self._pinecone_sparse_embed(texts)
 
-        # Convert OpenAI response to our format (dense only, no sparse from NVIDIA)
         embeddings = []
-        for item in response.data:
+        for i, item in enumerate(dense_embeddings):
             embeddings.append(
                 DenseAndSparseEmbeddings(
-                    dense=item.embedding,
-                    sparse=SparseVector(indices=[], values=[]),
+                    dense=item.embedding, sparse=sparse_embeddings[i]
                 )
             )
 
         return EmbeddingResponse(
             embeddings=embeddings,
-            dense_dimension=len(response.data[0].embedding),
+            dense_dimension=len(dense_embeddings[0].embedding),
         )
+
+    async def _nvidia_dense_embed(self, texts: List[str]) -> List[Embedding]:
+        """Call NVIDIA BGE-M3 via the OpenAI-compatible embeddings API."""
+        client = self._get_nvidia_client()
+        response = client.embeddings.create(
+            input=texts,
+            model=settings.nvidia_embedding_model,
+            encoding_format="float",
+            extra_body={"truncate": "NONE"},
+        )
+
+        return response.data
+
+    async def _pinecone_sparse_embed(self, texts: List[str]) -> List[SparseVector]:
+        """Get sparse embeddings from Pinecone."""
+        pc = self._get_pinecone_client()
+
+        try:
+            response = pc.inference.embed(
+                model="pinecone-sparse-english-v0",
+                inputs=texts,
+                parameters={
+                    "input_type": "passage",
+                    "truncate": "END",
+                },
+            )
+
+            sparse_embeddings = []
+            for item in response.data:
+                # Pinecone sparse returns values and indices
+                if item.sparse and item.sparse.values:
+                    sparse_embeddings.append(
+                        SparseVector(
+                            indices=item.sparse.values.indices,
+                            values=item.sparse.values.values,
+                        )
+                    )
+                else:
+                    # Fallback: return empty sparse if API doesn't return sparse
+                    sparse_embeddings.append(SparseVector(indices=[], values=[]))
+
+            return sparse_embeddings
+        except Exception:
+            # Fallback: return empty sparse on any error
+            return [SparseVector(indices=[], values=[]) for _ in texts]
 
     def _mock_embed(self, texts: List[str]) -> EmbeddingResponse:
         """

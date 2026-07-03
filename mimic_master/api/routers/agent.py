@@ -99,11 +99,13 @@ async def agent_chat_with_context(request: AgentRequest) -> AgentResponse:
 
 # ============== LangGraph Agent Endpoints ==============
 
+
 def get_langgraph_agent():
     """Get or create the LangGraph DM agent instance."""
     global _langgraph_agent
     if _langgraph_agent is None:
         from mimic_master.core.langgraph_agent import create_langgraph_agent
+
         _langgraph_agent = create_langgraph_agent()
     return _langgraph_agent
 
@@ -137,9 +139,7 @@ async def langgraph_agent_chat(request: AgentRequest) -> AgentResponse:
     except RuntimeError as e:
         raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"LangGraph agent failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"LangGraph agent failed: {str(e)}")
 
 
 @agent_router.post("/langgraph/stream")

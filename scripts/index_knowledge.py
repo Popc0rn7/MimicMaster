@@ -14,7 +14,6 @@ import argparse
 import asyncio
 import json
 import re
-import shutil
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -23,14 +22,14 @@ from typing import Dict, List, Optional, Tuple
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from mimic_master.config import settings
-from mimic_master.memory.knowledge_retriever import get_hybrid_knowledge_retriever
+from mimic_master.services.embedding_service import get_embedding_service
+from mimic_master.services.pinecone_service import get_pinecone_service
 from mimic_master.models.memory import (
     KnowledgeCategory,
     KnowledgeMetadata,
     MONSTER_TYPES,
     SourceBook,
 )
-
 
 # Base paths
 BASE_DIR = Path(__file__).parent.parent
@@ -42,48 +41,22 @@ class KnowledgeIndexer:
     """Indexer for D&D knowledge base."""
 
     def __init__(self):
-        self.retriever = get_hybrid_knowledge_retriever()
+        self.embedding_service = get_embedding_service()
+        self.pinecone_service = get_pinecone_service()
 
     async def ensure_processed_jsonl(self, source_name: str) -> Path:
-        """Ensure `knowledge/use/rag_{source}.jsonl` exists; create it if missing.
-
-        Backward compatible: if legacy `rag_{source}_described.jsonl` exists, migrate it.
-        """
+        """Return a non-empty processed JSONL path for indexing."""
         processed_path = USE_DIR / f"rag_{source_name}.jsonl"
-        if processed_path.exists():
-            return processed_path
-
-        legacy_path = USE_DIR / f"rag_{source_name}_described.jsonl"
-        if legacy_path.exists():
-            shutil.move(legacy_path, processed_path)
-            return processed_path
-
-        script_path = BASE_DIR / "scripts" / "process_images.py"
-        if not script_path.exists():
-            raise FileNotFoundError(f"Image processing script not found: {script_path}")
-
-        print(
-            f"Processed file missing for '{source_name}', running image processing first..."
-        )
-        proc = await asyncio.create_subprocess_exec(
-            sys.executable,
-            str(script_path),
-            "--source",
-            source_name,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT,
-        )
-        stdout, _ = await proc.communicate()
-        if stdout:
-            print(stdout.decode("utf-8", errors="replace"))
-        if proc.returncode != 0:
-            raise RuntimeError(
-                f"Image processing failed for source '{source_name}' (exit={proc.returncode})"
-            )
-
         if not processed_path.exists():
             raise FileNotFoundError(
-                f"Expected processed JSONL not created: {processed_path}"
+                f"Missing processed JSONL: {processed_path}. Place external source "
+                "data under knowledge/external/, import it into knowledge/raw/, then "
+                "run scripts/process_images.py to create knowledge/use/ files."
+            )
+        if processed_path.stat().st_size == 0:
+            raise ValueError(
+                f"Processed JSONL is empty: {processed_path}. Rebuild it from "
+                "knowledge/raw/ or restore the source data from knowledge/external/."
             )
         return processed_path
 
@@ -241,10 +214,17 @@ class KnowledgeIndexer:
                 print(f"  Processed {i + 1}/{len(data)} monsters...")
 
         # Batch index
-        print(f"  Upserting to Pinecone...")
-        await self.retriever.index_documents(
+        print("  Generating embeddings...")
+        response = await self.embedding_service.embed(texts)
+
+        # Convert to pinecone compatible format
+        embeddings = [emb.model_dump() for emb in response.embeddings]
+
+        print("  Upserting to Pinecone (dense + sparse)...")
+        await self.pinecone_service.upsert(
             ids=ids,
-            texts=texts,
+            embeddings=embeddings,
+            contents=texts,
             metadata=metadata_list,
             namespace=settings.monsters_namespace,
         )
@@ -301,10 +281,17 @@ class KnowledgeIndexer:
                 print(f"  Processed {i + 1}/{len(data)} entries...")
 
         # Batch index
-        print(f"  Upserting to Pinecone...")
-        await self.retriever.index_documents(
+        print("  Generating embeddings...")
+        response = await self.embedding_service.embed(texts)
+
+        # Convert to pinecone compatible format
+        embeddings = [emb.model_dump() for emb in response.embeddings]
+
+        print("  Upserting to Pinecone (dense + sparse)...")
+        await self.pinecone_service.upsert(
             ids=ids,
-            texts=texts,
+            embeddings=embeddings,
+            contents=texts,
             metadata=metadata_list,
             namespace=namespace,
         )
@@ -332,7 +319,7 @@ class KnowledgeIndexer:
         print("\n" + "=" * 50)
         print("Indexing complete!")
         print("=" * 50)
-        print(f"Results:")
+        print("Results:")
         print(f"  - Monsters: {results.get('monsters', 0)}")
         print(f"  - PHB Rules: {results.get('phb', 0)}")
         print(f"  - DMG Rules: {results.get('dmg', 0)}")

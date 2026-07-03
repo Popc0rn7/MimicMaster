@@ -3,7 +3,6 @@
 import uvicorn
 
 from mimic_master.api.app import app
-from mimic_master.config import settings
 
 
 def main() -> None:

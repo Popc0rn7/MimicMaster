@@ -5,8 +5,7 @@ This information is always included in the LLM context without retrieval.
 """
 
 from collections import deque
-from datetime import datetime
-from typing import Optional, Dict, List
+from typing import Optional, List
 
 from mimic_master.models.memory import (
     DialogueTurn,
@@ -78,8 +77,11 @@ class StateMemory:
             **kwargs: Fields to update in CharacterState
         """
         if player_name not in self._state.players:
-            # Create new player if doesn't exist
-            self._state.players[player_name] = CharacterState(name=player_name)
+            self._state.players[player_name] = CharacterState(
+                name=player_name,
+                hp=kwargs.get("hp", 0),
+                max_hp=kwargs.get("max_hp", 0),
+            )
 
         current_data = self._state.players[player_name].model_dump()
         current_data.update(kwargs)
@@ -170,7 +172,8 @@ class StateMemory:
                     lines.append(f"- Conditions: {', '.join(char_state.conditions)}")
                 if char_state.spell_slots:
                     slots_str = ", ".join(
-                        f"Level {lvl}: {slots}" for lvl, slots in sorted(char_state.spell_slots.items())
+                        f"Level {lvl}: {slots}"
+                        for lvl, slots in sorted(char_state.spell_slots.items())
                     )
                     lines.append(f"- Spell Slots: {slots_str}")
             lines.append("")

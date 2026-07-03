@@ -3,7 +3,6 @@
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -17,28 +16,39 @@ class Settings:
     def __init__(self) -> None:
         # Pinecone Configuration
         self.pinecone_api_key: str = os.getenv("PINECONE_API_KEY", "")
-        self.pinecone_index: str = os.getenv(
-            "PINECONE_INDEX", "mimic-rules-prod"
-        )
+        self.pinecone_index: str = os.getenv("PINECONE_INDEX", "mimic-rules-prod")
 
-        # Provider Base URL
+        # Provider Base URL for self-hosted HTTP services
         self.provider_base_url: str = os.getenv("PROVIDER_BASE_URL", "")
 
         # Embedding Service Configuration
         embed_url = os.getenv("EMBEDDING_PROVIDER_URL", "")
         if not embed_url and self.provider_base_url:
             embed_url = f"{self.provider_base_url}/embeddings"
-        self.embedding_provider_url: str = embed_url or "mock"
-        self.embedding_provider_type: str = os.getenv("EMBEDDING_PROVIDER_TYPE", "http").lower()
+        self.embedding_provider_url: str = embed_url
+        self.embedding_provider_type: str = os.getenv(
+            "EMBEDDING_PROVIDER_TYPE", "nvidia"
+        ).lower()
         self.embedding_dimension: int = int(os.getenv("EMBEDDING_DIMENSION", "1024"))
+        self.nvidia_api_key: str = os.getenv("NVIDIA_API_KEY") or os.getenv(
+            "OPENAI_API_KEY", ""
+        )
         self.openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
+        self.nvidia_base_url: str = os.getenv(
+            "NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1"
+        )
+        self.nvidia_embedding_model: str = os.getenv(
+            "NVIDIA_EMBEDDING_MODEL", "baai/bge-m3"
+        )
 
         # Reranker Service Configuration (uses Pinecone native inference API)
         rerank_url = os.getenv("RERANKER_PROVIDER_URL", "")
         if not rerank_url and self.provider_base_url:
             rerank_url = f"{self.provider_base_url}/reranker"
         self.reranker_provider_url: str = rerank_url or "mock"
-        self.reranker_provider_type: str = os.getenv("RERANKER_PROVIDER_TYPE", "pinecone").lower()
+        self.reranker_provider_type: str = os.getenv(
+            "RERANKER_PROVIDER_TYPE", "pinecone"
+        ).lower()
 
         # Vision Service Configuration
         vision_url = os.getenv("VISION_PROVIDER_URL", "")
@@ -51,7 +61,9 @@ class Settings:
         # LangSmith Configuration
         self.langsmith_api_key: str = os.getenv("LANGSMITH_API_KEY", "")
         self.langsmith_project: str = os.getenv("LANGSMITH_PROJECT", "mimic-master")
-        self.langsmith_tracing: bool = os.getenv("LANGSMITH_TRACING", "false").lower() == "true"
+        self.langsmith_tracing: bool = (
+            os.getenv("LANGSMITH_TRACING", "false").lower() == "true"
+        )
         self.langsmith_endpoint: str = os.getenv(
             "LANGSMITH_ENDPOINT", "https://api.smith.langchain.com"
         )
@@ -75,8 +87,13 @@ class Settings:
 
     @property
     def use_mock_embedding(self) -> bool:
-        """Check if we should use mock embedding service."""
-        return self.embedding_provider_type == "mock"
+        """Deprecated: runtime mock embedding provider is no longer supported."""
+        return False
+
+    @property
+    def use_http_embedding(self) -> bool:
+        """Check if we should use a self-hosted HTTP embedding service."""
+        return self.embedding_provider_type == "http"
 
     @property
     def use_mock_reranker(self) -> bool:
@@ -91,7 +108,7 @@ class Settings:
     @property
     def use_nvidia_embedding(self) -> bool:
         """Check if we should use NVIDIA API for embedding."""
-        return self.embedding_provider_type == "nvidia" and bool(self.openai_api_key)
+        return self.embedding_provider_type == "nvidia" and bool(self.nvidia_api_key)
 
     @property
     def use_mock_vision(self) -> bool:

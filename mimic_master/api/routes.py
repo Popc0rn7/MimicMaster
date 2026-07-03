@@ -34,6 +34,8 @@ def init_langsmith_tracing() -> None:
             os.environ["LANGCHAIN_PROJECT"] = settings.langsmith_project
             if settings.langsmith_endpoint:
                 os.environ["LANGCHAIN_ENDPOINT"] = settings.langsmith_endpoint
-            print(f"LangSmith tracing initialized for project: {settings.langsmith_project}")
+            print(
+                f"LangSmith tracing initialized for project: {settings.langsmith_project}"
+            )
     except ImportError:
         print("LangChain not available for tracing")
