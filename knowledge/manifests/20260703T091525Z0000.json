@@ -1,0 +1,52 @@
+{
+  "generated_at": "2026-07-03T09:15:25+00:00",
+  "source_commit": "d880b1a2a4654ba5fe05fced64368d25e1fefa83",
+  "input_root": "submodules/5etools-cn/data",
+  "output_root": "knowledge",
+  "sources": [
+    "phb",
+    "dmg",
+    "mm"
+  ],
+  "outputs": {
+    "phb": {
+      "path": "knowledge/normalized/phb.jsonl",
+      "record_count": 2059,
+      "sha256": "ead592b8a0e6a6330ce46ff83f0f393104cf2c55542346cd9db401b768f13823"
+    },
+    "dmg": {
+      "path": "knowledge/normalized/dmg.jsonl",
+      "record_count": 1807,
+      "sha256": "5e9c1036faf1f613c6d3eb58fa36f29f8d2615a08ba440c880b69c2bf1af3a9a"
+    },
+    "mm": {
+      "path": "knowledge/normalized/mm.jsonl",
+      "record_count": 1004,
+      "sha256": "bf7ceef4477ac96252bf62daf41a15d1a4c88b01980f0fefdf62ee07d56c8d06"
+    }
+  },
+  "skipped_items": 400,
+  "unknown_tags": {
+    "5etools": 85,
+    "bold": 168,
+    "card": 4,
+    "classFeature": 1,
+    "d20": 2,
+    "deity": 1743,
+    "disease": 9,
+    "hazard": 33,
+    "italic": 37,
+    "language": 15,
+    "link": 1,
+    "note": 63,
+    "object": 14,
+    "quickref": 336,
+    "reward": 56,
+    "s": 24,
+    "style": 1,
+    "table": 446,
+    "variantrule": 42
+  },
+  "empty_records": 0,
+  "source_errors": []
+}

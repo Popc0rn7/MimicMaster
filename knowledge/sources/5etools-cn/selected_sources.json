@@ -1,0 +1,30 @@
+{
+  "phb": [
+    "data/book/book-phb.json",
+    "data/spells/spells-phb.json",
+    "data/class/class-*.json",
+    "data/races.json",
+    "data/backgrounds.json",
+    "data/feats.json",
+    "data/items-base.json",
+    "data/items.json",
+    "data/conditionsdiseases.json",
+    "data/optionalfeatures.json",
+    "data/variantrules.json"
+  ],
+  "dmg": [
+    "data/book/book-dmg.json",
+    "data/items.json",
+    "data/items-base.json",
+    "data/rewards.json",
+    "data/trapshazards.json",
+    "data/objects.json",
+    "data/conditionsdiseases.json",
+    "data/variantrules.json"
+  ],
+  "mm": [
+    "data/bestiary/bestiary-mm.json",
+    "data/bestiary/fluff-bestiary-mm.json",
+    "data/book/book-mm.json"
+  ]
+}
