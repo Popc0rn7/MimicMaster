@@ -1,6 +1,38 @@
 version: '3.8'
 
 services:
+  mongodb:
+    image: mongo:7
+    container_name: mimic-master-mongodb
+    ports:
+      - "${MONGODB_PORT:-27017}:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGODB_USERNAME:-mimic}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD:-mimic_master}
+      - MONGO_INITDB_DATABASE=${MONGODB_DATABASE:-mimic_master}
+    volumes:
+      - ./mongodb:/data/db
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mongosh",
+          "--quiet",
+          "--username",
+          "${MONGODB_USERNAME:-mimic}",
+          "--password",
+          "${MONGODB_PASSWORD:-mimic_master}",
+          "--authenticationDatabase",
+          "admin",
+          "--eval",
+          "db.adminCommand('ping').ok",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
   mimic-master:
     build: .
     container_name: mimic-master
@@ -14,6 +46,14 @@ services:
       - EMBEDDING_DIMENSION=${EMBEDDING_DIMENSION:-1024}
       - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
       - LANGSMITH_PROJECT=${LANGSMITH_PROJECT}
+      - MONGODB_HOST=mongodb
+      - MONGODB_PORT=27017
+      - MONGODB_DATABASE=${MONGODB_DATABASE:-mimic_master}
+      - MONGODB_USERNAME=${MONGODB_USERNAME:-mimic}
+      - MONGODB_PASSWORD=${MONGODB_PASSWORD:-mimic_master}
+    depends_on:
+      mongodb:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]

@@ -134,7 +134,10 @@ class Settings:
     def mongodb_uri(self) -> str:
         """Build MongoDB connection URI."""
         if self.mongodb_username and self.mongodb_password:
-            return f"mongodb://{self.mongodb_username}:{self.mongodb_password}@{self.mongodb_host}:{self.mongodb_port}"
+            return (
+                f"mongodb://{self.mongodb_username}:{self.mongodb_password}"
+                f"@{self.mongodb_host}:{self.mongodb_port}/?authSource=admin"
+            )
         return f"mongodb://{self.mongodb_host}:{self.mongodb_port}"
 
     @property

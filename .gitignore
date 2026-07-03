@@ -46,6 +46,8 @@ Thumbs.db
 mongodb/
 knowledge/**/*.jsonl
 !knowledge/normalized/*.jsonl
+!knowledge/mongo/*.jsonl
+!knowledge/pinecone/*.jsonl
 knowledge/raw/**
 knowledge/enhanced/**
 knowledge/use/**

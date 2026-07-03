@@ -11,6 +11,7 @@ from utils.preprocess.models import BuildManifest, NormalizedRecord
 from utils.preprocess.pipelines.dmg import build_dmg_records
 from utils.preprocess.pipelines.mm import build_mm_records
 from utils.preprocess.pipelines.phb import build_phb_records
+from utils.preprocess.processing import process_to_outputs
 from utils.preprocess.renderers import RenderStats
 from utils.preprocess.sources.fiveetools import FiveEToolsSource
 from utils.preprocess.writers import (
@@ -65,6 +66,8 @@ def main() -> None:
     args = parser.parse_args()
     if args.command == "normalize":
         normalize(args)
+    elif args.command == "process":
+        process(args)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -80,6 +83,12 @@ def build_parser() -> argparse.ArgumentParser:
     normalize_parser.add_argument(
         "--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT
     )
+    process_parser = subparsers.add_parser("process")
+    process_parser.add_argument(
+        "--input-root", type=Path, default=DEFAULT_OUTPUT_ROOT / "normalized"
+    )
+    process_parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
+    process_parser.add_argument("--limit", type=int, default=None)
     return parser
 
 
@@ -143,6 +152,18 @@ def print_summary(manifest: BuildManifest) -> None:
     print(f"  unknown_tags: {sum(manifest.unknown_tags.values())}")
     if manifest.source_errors:
         print(f"  source_errors: {len(manifest.source_errors)}")
+
+
+def process(args: argparse.Namespace) -> None:
+    manifest = process_to_outputs(
+        normalized_dir=args.input_root,
+        output_root=args.output_root,
+        limit=args.limit,
+    )
+    print("Processing summary")
+    for key, metadata in manifest.outputs.items():
+        print(f"  {key}: {metadata['record_count']} records")
+    print(f"  skipped_items: {manifest.skipped_items}")
 
 
 if __name__ == "__main__":

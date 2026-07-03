@@ -1,0 +1,30 @@
+{
+  "generated_at": "2026-07-03T10:04:34+00:00",
+  "source_commit": "d880b1a2a4654ba5fe05fced64368d25e1fefa83",
+  "input_root": "knowledge/normalized",
+  "output_root": "knowledge",
+  "sources": [
+    "process"
+  ],
+  "outputs": {
+    "mongo_entities": {
+      "path": "knowledge/mongo/entities.jsonl",
+      "record_count": 2785,
+      "sha256": "7c6aed409e797981589aedd09b7c2eedc27d5e1e000d43cf117be330955d0d12"
+    },
+    "pinecone_chunks": {
+      "path": "knowledge/pinecone/chunks.jsonl",
+      "record_count": 2855,
+      "sha256": "97eabbd994c57923ca0d8682011a30359d14f83bdb66f0235f6f597cf379e09a"
+    }
+  },
+  "skipped_items": 0,
+  "unknown_tags": {},
+  "empty_records": 0,
+  "source_errors": [],
+  "routing": {
+    "mongo_exact": 2785,
+    "pinecone_semantic": 2855,
+    "both_fallback": 0
+  }
+}

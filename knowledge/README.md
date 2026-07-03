@@ -7,6 +7,8 @@ and archived legacy RAG files.
 
 - `sources/`: provenance metadata for checked-out upstream data.
 - `normalized/`: first-wave JSONL output from PHB, DMG, and MM source data.
+- `mongo/`: exact-lookup import JSONL for MongoDB.
+- `pinecone/`: semantic chunk JSONL for Pinecone embedding/indexing.
 - `chunks/`: reserved for future chunking output. The first wave does not write it.
 - `manifests/`: run manifests with record counts, output hashes, skipped counters,
   unknown tags, and source commit information.
@@ -70,6 +72,7 @@ uv run python -m utils.preprocess.cli normalize --source phb
 uv run python -m utils.preprocess.cli normalize --source dmg
 uv run python -m utils.preprocess.cli normalize --source mm
 uv run python -m utils.preprocess.cli normalize --source all
+uv run python -m utils.preprocess.cli process
 ```
 
 Useful options:
@@ -77,6 +80,7 @@ Useful options:
 ```bash
 uv run python -m utils.preprocess.cli normalize --source phb --limit 5 --dry-run
 uv run python -m utils.preprocess.cli normalize --source all --input-root submodules/5etools-cn/data --output-root knowledge
+uv run python -m utils.preprocess.cli process --input-root knowledge/normalized --output-root knowledge
 ```
 
 In restricted sandboxes where the default uv cache is read-only, set
@@ -84,6 +88,24 @@ In restricted sandboxes where the default uv cache is read-only, set
 
 ## Scope
 
-This first wave only generates `knowledge/normalized/*.jsonl` and manifests. It
-does not create final chunks, call embedding providers, write Pinecone, or change
-the agent runtime/indexing code.
+The first normalization wave generates `knowledge/normalized/*.jsonl` and
+manifests. The processing step splits normalized records into MongoDB exact
+lookup documents and Pinecone semantic chunks. It does not call embedding
+providers, write Pinecone, write MongoDB, or change the agent runtime/indexing
+code.
+
+## Processing Split
+
+The processing step follows a one-backend-first retrieval rule:
+
+- MongoDB exact lookup receives structured entities and tables, such as spells,
+  monsters, items, conditions, class features, objects, rewards, traps, hazards,
+  and table records.
+- Pinecone semantic lookup receives self-contained text chunks for rules,
+  Monster Manual fluff, monster sections, DMG guidance, and variant rules.
+- Pinecone chunks include answerable `text`, source book, page, section path,
+  tags, and source trace so semantic results do not require MongoDB hydration by
+  default.
+
+Use MongoDB first for entity/stat/list/filter queries. Use Pinecone first for
+natural-language rules, rulings, setting, and guidance questions.

@@ -56,3 +56,18 @@ def test_http_provider_uses_local_endpoint(monkeypatch):
 
     assert settings.use_http_embedding
     assert settings.embedding_provider_url == "http://localhost:8001/embeddings"
+
+
+def test_mongodb_uri_uses_admin_auth_source_with_credentials(monkeypatch):
+    """Docker Mongo root credentials authenticate against the admin database."""
+    monkeypatch.setenv("MONGODB_HOST", "localhost")
+    monkeypatch.setenv("MONGODB_PORT", "27017")
+    monkeypatch.setenv("MONGODB_USERNAME", "mimic")
+    monkeypatch.setenv("MONGODB_PASSWORD", "mimic_master")
+
+    settings = Settings()
+
+    assert (
+        settings.mongodb_uri
+        == "mongodb://mimic:mimic_master@localhost:27017/?authSource=admin"
+    )
