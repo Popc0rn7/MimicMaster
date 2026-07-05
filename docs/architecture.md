@@ -195,15 +195,18 @@ PINECONE_API_KEY=xxx
 PINECONE_INDEX=mimic-rules-prod
 
 # Embedding
-EMBEDDING_PROVIDER_TYPE=nvidia
+EMBEDDING_BACKEND=nvidia
+EMBEDDING_MODEL=baai/bge-m3
 NVIDIA_API_KEY=xxx
 NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
-NVIDIA_EMBEDDING_MODEL=baai/bge-m3
-EMBEDDING_DIMENSION=1024
 
-# Optional local/self-hosted provider
-# EMBEDDING_PROVIDER_TYPE=http
-# EMBEDDING_PROVIDER_URL=http://192.168.1.x:8000/embeddings
+OPENROUTER_API_KEY=xxx
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+
+LOCAL_API_KEY=xxx
+LOCAL_BASE_URL=http://192.168.1.x:8000/v1
+
+EMBEDDING_DIMENSION=1024
 
 # Reranker
 RERANKER_PROVIDER_TYPE=pinecone

@@ -74,14 +74,10 @@ pytestmark = pytest.mark.skipif(
 
 def embedding_provider_configured() -> bool:
     """Return whether tests can call a real embedding provider."""
-    if settings.use_nvidia_embedding:
-        return True
-    if settings.use_http_embedding:
-        return bool(
-            settings.embedding_provider_url
-            and "localhost:9999" not in settings.embedding_provider_url
-        )
-    return False
+    return bool(
+        settings.is_embedding_configured
+        and "localhost:9999" not in settings.embedding_base_url
+    )
 
 
 @pytest.mark.asyncio

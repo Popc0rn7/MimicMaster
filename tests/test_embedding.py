@@ -9,17 +9,19 @@ from mimic_master.models.embeddings import DenseAndSparseEmbeddings, SparseVecto
 
 @pytest.fixture
 def embedding_service(monkeypatch):
-    """Create a fresh embedding service with a fake HTTP provider."""
+    """Create a fresh embedding service with a fake local provider."""
     service = EmbeddingService()
     monkeypatch.setattr(
-        "mimic_master.services.embedding_service.settings.embedding_provider_type",
-        "http",
+        "mimic_master.services.embedding_service.settings.embedding_backend",
+        "local",
     )
 
-    async def fake_http_embed(texts):
+    async def fake_openai_compatible_embed(texts):
         return service._mock_embed(texts)
 
-    monkeypatch.setattr(service, "_http_embed", fake_http_embed)
+    monkeypatch.setattr(
+        service, "_openai_compatible_embed", fake_openai_compatible_embed
+    )
     return service
 
 
@@ -29,7 +31,7 @@ async def test_embedding_dispatches_to_nvidia_by_default(
 ):
     """NVIDIA is the default embedding provider."""
     monkeypatch.setattr(
-        "mimic_master.services.embedding_service.settings.embedding_provider_type",
+        "mimic_master.services.embedding_service.settings.embedding_backend",
         "nvidia",
     )
     monkeypatch.setattr(
@@ -38,10 +40,12 @@ async def test_embedding_dispatches_to_nvidia_by_default(
         raising=False,
     )
 
-    async def fake_nvidia_embed(texts):
+    async def fake_openai_compatible_embed(texts):
         return embedding_service._mock_embed(texts)
 
-    monkeypatch.setattr(embedding_service, "_nvidia_embed", fake_nvidia_embed)
+    monkeypatch.setattr(
+        embedding_service, "_openai_compatible_embed", fake_openai_compatible_embed
+    )
 
     response = await embedding_service.embed(["Fireball"])
 
@@ -49,17 +53,19 @@ async def test_embedding_dispatches_to_nvidia_by_default(
 
 
 @pytest.mark.asyncio
-async def test_embedding_dispatches_to_http_provider(monkeypatch, embedding_service):
-    """HTTP is the only local/self-hosted embedding provider."""
+async def test_embedding_dispatches_to_local_provider(monkeypatch, embedding_service):
+    """Local is the self-hosted OpenAI-compatible embedding provider."""
     monkeypatch.setattr(
-        "mimic_master.services.embedding_service.settings.embedding_provider_type",
-        "http",
+        "mimic_master.services.embedding_service.settings.embedding_backend",
+        "local",
     )
 
-    async def fake_http_embed(texts):
+    async def fake_openai_compatible_embed(texts):
         return embedding_service._mock_embed(texts)
 
-    monkeypatch.setattr(embedding_service, "_http_embed", fake_http_embed)
+    monkeypatch.setattr(
+        embedding_service, "_openai_compatible_embed", fake_openai_compatible_embed
+    )
 
     response = await embedding_service.embed(["Goblin"])
 
@@ -110,3 +116,25 @@ async def test_embedding_consistency(embedding_service):
     response2 = await embedding_service.embed([text])
 
     assert response1.embeddings[0].dense == response2.embeddings[0].dense
+
+
+@pytest.mark.asyncio
+async def test_openai_compatible_embed_rejects_empty_dense_response(monkeypatch):
+    """Provider empty responses should fail before later iteration errors."""
+    service = EmbeddingService()
+
+    async def fake_dense_embed(texts):
+        return None
+
+    async def fake_sparse_embed(texts):
+        return [SparseVector(indices=[], values=[]) for _ in texts]
+
+    monkeypatch.setattr(service, "_dense_embed", fake_dense_embed)
+    monkeypatch.setattr(service, "_pinecone_sparse_embed", fake_sparse_embed)
+    monkeypatch.setattr(
+        "mimic_master.services.embedding_service.settings.embedding_backend",
+        "openrouter",
+    )
+
+    with pytest.raises(RuntimeError, match="returned no dense embeddings"):
+        await service._openai_compatible_embed(["test"])

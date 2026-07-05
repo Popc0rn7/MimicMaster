@@ -22,23 +22,32 @@ class Settings:
         self.provider_base_url: str = os.getenv("PROVIDER_BASE_URL", "")
 
         # Embedding Service Configuration
-        embed_url = os.getenv("EMBEDDING_PROVIDER_URL", "")
-        if not embed_url and self.provider_base_url:
-            embed_url = f"{self.provider_base_url}/embeddings"
-        self.embedding_provider_url: str = embed_url
-        self.embedding_provider_type: str = os.getenv(
-            "EMBEDDING_PROVIDER_TYPE", "nvidia"
-        ).lower()
+        self.embedding_backend: str = os.getenv("EMBEDDING_BACKEND", "nvidia").lower()
         self.embedding_dimension: int = int(os.getenv("EMBEDDING_DIMENSION", "1024"))
-        self.nvidia_api_key: str = os.getenv("NVIDIA_API_KEY") or os.getenv(
-            "OPENAI_API_KEY", ""
+        self.openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", "")
+        self.openrouter_base_url: str = os.getenv(
+            "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
         )
-        self.openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
+        self.nvidia_api_key: str = os.getenv("NVIDIA_API_KEY", "")
         self.nvidia_base_url: str = os.getenv(
             "NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1"
         )
-        self.nvidia_embedding_model: str = os.getenv(
-            "NVIDIA_EMBEDDING_MODEL", "baai/bge-m3"
+        self.local_api_key: str = os.getenv("LOCAL_API_KEY", "")
+        self.local_base_url: str = os.getenv("LOCAL_BASE_URL", "")
+        self.embedding_model: str = os.getenv("EMBEDDING_MODEL", "baai/bge-m3")
+        self.embedding_api_key: str = self._select_embedding_setting(
+            {
+                "openrouter": self.openrouter_api_key,
+                "nvidia": self.nvidia_api_key,
+                "local": self.local_api_key,
+            }
+        )
+        self.embedding_base_url: str = self._select_embedding_setting(
+            {
+                "openrouter": self.openrouter_base_url,
+                "nvidia": self.nvidia_base_url,
+                "local": self.local_base_url,
+            }
         )
 
         # Reranker Service Configuration (uses Pinecone native inference API)
@@ -91,9 +100,14 @@ class Settings:
         return False
 
     @property
-    def use_http_embedding(self) -> bool:
-        """Check if we should use a self-hosted HTTP embedding service."""
-        return self.embedding_provider_type == "http"
+    def use_openrouter_embedding(self) -> bool:
+        """Check if OpenRouter is selected for embeddings."""
+        return self.embedding_backend == "openrouter"
+
+    @property
+    def use_local_embedding(self) -> bool:
+        """Check if a local OpenAI-compatible backend is selected."""
+        return self.embedding_backend == "local"
 
     @property
     def use_mock_reranker(self) -> bool:
@@ -108,7 +122,25 @@ class Settings:
     @property
     def use_nvidia_embedding(self) -> bool:
         """Check if we should use NVIDIA API for embedding."""
-        return self.embedding_provider_type == "nvidia" and bool(self.nvidia_api_key)
+        return self.embedding_backend == "nvidia"
+
+    @property
+    def is_embedding_configured(self) -> bool:
+        """Check if the selected OpenAI-compatible embedding backend is configured."""
+        return bool(
+            self.embedding_api_key and self.embedding_base_url and self.embedding_model
+        )
+
+    def _select_embedding_setting(self, values_by_backend: dict[str, str]) -> str:
+        """Return a backend-specific embedding setting."""
+        try:
+            return values_by_backend[self.embedding_backend]
+        except KeyError as exc:
+            allowed = ", ".join(sorted(values_by_backend))
+            raise ValueError(
+                f"Unsupported EMBEDDING_BACKEND '{self.embedding_backend}'. "
+                f"Use one of: {allowed}."
+            ) from exc
 
     @property
     def use_mock_vision(self) -> bool:

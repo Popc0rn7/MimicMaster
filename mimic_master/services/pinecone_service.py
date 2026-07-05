@@ -103,12 +103,13 @@ class PineconeService:
             vector_data: Dict[str, Any] = {
                 "id": id_,
                 "values": dense_vals,
-                "sparse_values": {
-                    "indices": sparse_indices,
-                    "values": sparse_values,
-                },
                 "metadata": vector_metadata,
             }
+            if sparse_indices and sparse_values:
+                vector_data["sparse_values"] = {
+                    "indices": sparse_indices,
+                    "values": sparse_values,
+                }
             vectors.append(vector_data)
 
         index = self.client.Index(self._index_name)

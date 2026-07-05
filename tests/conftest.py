@@ -7,11 +7,17 @@ import os
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_environment():
     """Set up test environment."""
+    if os.getenv("RUN_REAL_EMBEDDING") == "1":
+        yield
+        return
+
     # Clear and set test environment variables
     os.environ["PINECONE_INDEX"] = "test-index"
     os.environ["EMBEDDING_DIMENSION"] = "1024"
-    os.environ["EMBEDDING_PROVIDER_TYPE"] = "http"
-    os.environ["EMBEDDING_PROVIDER_URL"] = "http://localhost:9999/embeddings"
+    os.environ["EMBEDDING_BACKEND"] = "local"
+    os.environ["EMBEDDING_MODEL"] = "test-local-model"
+    os.environ["LOCAL_API_KEY"] = "test-local-key"
+    os.environ["LOCAL_BASE_URL"] = "http://localhost:9999/v1"
     os.environ["RERANKER_PROVIDER_URL"] = "mock"
 
     # Clear any existing API keys

@@ -1,8 +1,7 @@
-"""Embedding service with NVIDIA and self-hosted HTTP provider support."""
+"""Embedding service with OpenAI-compatible provider support."""
 
 from __future__ import annotations
 
-import httpx
 from typing import TYPE_CHECKING, Dict, List, Optional
 from openai import OpenAI
 from openai.types import Embedding
@@ -23,21 +22,22 @@ class EmbeddingService:
 
     def __init__(self) -> None:
         self._dimension: int = settings.embedding_dimension
-        self._nvidia_client: Optional["OpenAI"] = None
+        self._embedding_client: Optional["OpenAI"] = None
         self._pinecone_client: Optional["Pinecone"] = None
 
-    def _get_nvidia_client(self) -> "OpenAI":
-        """Get or create OpenAI-compatible client for NVIDIA NIM."""
-        if not settings.nvidia_api_key:
+    def _get_embedding_client(self) -> "OpenAI":
+        """Get or create the selected OpenAI-compatible embedding client."""
+        if not settings.is_embedding_configured:
             raise RuntimeError(
-                "NVIDIA embedding is configured but NVIDIA_API_KEY is not set."
+                f"{settings.embedding_backend} embedding requires api key, "
+                "base URL, and model settings."
             )
-        if self._nvidia_client is None:
-            self._nvidia_client = OpenAI(
-                api_key=settings.nvidia_api_key,
-                base_url=settings.nvidia_base_url,
+        if self._embedding_client is None:
+            self._embedding_client = OpenAI(
+                api_key=settings.embedding_api_key,
+                base_url=settings.embedding_base_url,
             )
-        return self._nvidia_client
+        return self._embedding_client
 
     def _get_pinecone_client(self) -> "Pinecone":
         """Get or create Pinecone client for sparse embeddings."""
@@ -58,46 +58,23 @@ class EmbeddingService:
             EmbeddingResponse containing dense and sparse embeddings
 
         Raises:
-            httpx.HTTPError: If the external service fails
+            openai.OpenAIError: If the external service fails
         """
-        if settings.embedding_provider_type == "nvidia":
-            return await self._nvidia_embed(texts)
+        return await self._openai_compatible_embed(texts)
 
-        if settings.use_http_embedding:
-            return await self._http_embed(texts)
-
-        raise ValueError("Unsupported EMBEDDING_PROVIDER_TYPE. Use 'nvidia' or 'http'.")
-
-    async def _http_embed(self, texts: List[str]) -> EmbeddingResponse:
-        """Call embedding service via HTTP endpoint."""
-        if not settings.embedding_provider_url:
+    async def _openai_compatible_embed(self, texts: List[str]) -> EmbeddingResponse:
+        """Call the selected OpenAI-compatible backend and add sparse embeddings."""
+        dense_embeddings = await self._dense_embed(texts)
+        if not dense_embeddings:
             raise RuntimeError(
-                "HTTP embedding provider requires EMBEDDING_PROVIDER_URL."
+                f"{settings.embedding_backend} returned no dense embeddings "
+                f"for {len(texts)} texts."
             )
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                settings.embedding_provider_url,
-                json={"texts": texts},
+        if len(dense_embeddings) != len(texts):
+            raise RuntimeError(
+                f"{settings.embedding_backend} returned {len(dense_embeddings)} "
+                f"dense embeddings for {len(texts)} texts."
             )
-            response.raise_for_status()
-            data = response.json()
-            return EmbeddingResponse(
-                embeddings=[
-                    DenseAndSparseEmbeddings(
-                        dense=item["dense"],
-                        sparse=SparseVector(
-                            indices=item["sparse"]["indices"],
-                            values=item["sparse"]["values"],
-                        ),
-                    )
-                    for item in data["embeddings"]
-                ],
-                dense_dimension=data.get("dense_dimension", self._dimension),
-            )
-
-    async def _nvidia_embed(self, texts: List[str]) -> EmbeddingResponse:
-        """Call NVIDIA for dense embeddings and Pinecone inference for sparse."""
-        dense_embeddings = await self._nvidia_dense_embed(texts)
         sparse_embeddings = await self._pinecone_sparse_embed(texts)
 
         embeddings = []
@@ -113,12 +90,12 @@ class EmbeddingService:
             dense_dimension=len(dense_embeddings[0].embedding),
         )
 
-    async def _nvidia_dense_embed(self, texts: List[str]) -> List[Embedding]:
-        """Call NVIDIA BGE-M3 via the OpenAI-compatible embeddings API."""
-        client = self._get_nvidia_client()
+    async def _dense_embed(self, texts: List[str]) -> List[Embedding]:
+        """Call the selected backend through the OpenAI-compatible embeddings API."""
+        client = self._get_embedding_client()
         response = client.embeddings.create(
             input=texts,
-            model=settings.nvidia_embedding_model,
+            model=settings.embedding_model,
             encoding_format="float",
             extra_body={"truncate": "NONE"},
         )
