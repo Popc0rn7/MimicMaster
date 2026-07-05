@@ -83,3 +83,45 @@ def test_mongodb_uri_uses_admin_auth_source_with_credentials(monkeypatch):
         settings.mongodb_uri
         == "mongodb://mimic:mimic_master@localhost:27017/?authSource=admin"
     )
+
+
+def test_vision_uses_provider_neutral_api_key(monkeypatch):
+    """Vision accepts provider-neutral OpenAI-compatible credentials."""
+    monkeypatch.delenv("ZHIPU_API_KEY", raising=False)
+    monkeypatch.setenv("VISION_API_KEY", "vision-key")
+    monkeypatch.setenv("VISION_PROVIDER_URL", "https://vision.example/v1")
+    monkeypatch.setenv("VISION_MODEL", "gpt-5.4")
+
+    settings = Settings()
+
+    assert settings.vision_api_key == "vision-key"
+    assert settings.zhipu_api_key == "vision-key"
+    assert settings.vision_provider_url == "https://vision.example/v1"
+    assert settings.vision_model == "gpt-5.4"
+    assert settings.is_vision_configured
+    assert not settings.use_mock_vision
+
+
+def test_vision_keeps_zhipu_api_key_as_compatibility_fallback(monkeypatch):
+    """Vision still accepts the previous ZHIPU_API_KEY environment variable."""
+    monkeypatch.delenv("VISION_API_KEY", raising=False)
+    monkeypatch.setenv("ZHIPU_API_KEY", "zhipu-key")
+    monkeypatch.setenv("VISION_PROVIDER_URL", "https://vision.example/v1")
+
+    settings = Settings()
+
+    assert settings.vision_api_key == "zhipu-key"
+    assert settings.zhipu_api_key == "zhipu-key"
+    assert settings.is_vision_configured
+
+
+def test_empty_vision_api_key_falls_back_to_zhipu_key(monkeypatch):
+    """An empty provider-neutral key does not mask the legacy key."""
+    monkeypatch.setenv("VISION_API_KEY", "")
+    monkeypatch.setenv("ZHIPU_API_KEY", "zhipu-key")
+    monkeypatch.setenv("VISION_PROVIDER_URL", "https://vision.example/v1")
+
+    settings = Settings()
+
+    assert settings.vision_api_key == "zhipu-key"
+    assert settings.is_vision_configured

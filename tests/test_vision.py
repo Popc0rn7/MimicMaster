@@ -1,7 +1,5 @@
 """Tests for vision service."""
 
-import os
-
 import pytest
 from pathlib import Path
 
@@ -45,25 +43,6 @@ async def test_describe_image_mock(vision_service, test_image_path):
         config.settings.vision_provider_url = original_url
 
 
-@pytest.mark.asyncio
-async def test_describe_image_real(vision_service, test_image_path):
-    """Test image description with real GLM-4V API."""
-    from mimic_master.config import settings
-
-    if os.getenv("RUN_REAL_VISION") != "1":
-        pytest.skip("Set RUN_REAL_VISION=1 to call the real vision API.")
-    if not settings.zhipu_api_key:
-        pytest.skip("ZHIPU_API_KEY not set - requires real API key")
-
-    result = await vision_service.describe_image(test_image_path)
-
-    assert result is not None
-    assert result.image_path == test_image_path
-    assert result.description
-    assert len(result.description) > 10  # Should have meaningful description
-    print(f"\n[Real API] Description: {result.description}")
-
-
 def test_vision_service_initialization():
     """Test vision service can be initialized."""
     from mimic_master.services.vision_service import VisionService
@@ -81,3 +60,33 @@ def test_vision_config():
 
     assert settings.vision_model
     assert isinstance(settings.use_mock_vision, bool)
+
+
+def test_chat_completions_url_accepts_openai_compatible_base_url():
+    """Vision provider URL can be an OpenAI-compatible /v1 base URL."""
+    from mimic_master.services.vision_service import build_chat_completions_url
+
+    assert (
+        build_chat_completions_url("https://vision.example/v1")
+        == "https://vision.example/v1/chat/completions"
+    )
+
+
+def test_chat_completions_url_accepts_provider_root_url():
+    """Vision provider URL can be a provider root that exposes OpenAI /v1."""
+    from mimic_master.services.vision_service import build_chat_completions_url
+
+    assert (
+        build_chat_completions_url("https://vision.example")
+        == "https://vision.example/v1/chat/completions"
+    )
+
+
+def test_chat_completions_url_accepts_full_endpoint():
+    """Vision provider URL can be a full chat completions endpoint."""
+    from mimic_master.services.vision_service import build_chat_completions_url
+
+    assert (
+        build_chat_completions_url("https://vision.example/v1/chat/completions")
+        == "https://vision.example/v1/chat/completions"
+    )

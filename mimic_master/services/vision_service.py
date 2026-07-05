@@ -3,6 +3,7 @@
 import base64
 import httpx
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from mimic_master.config import settings
 from mimic_master.models.vision import ImageDescription
@@ -10,11 +11,21 @@ from mimic_master.models.vision import ImageDescription
 IMG_DIR = Path(settings.base_dir) / "knowledge" / "raw" / "img"
 
 
+def build_chat_completions_url(base_url: str) -> str:
+    """Build an OpenAI-compatible chat completions endpoint URL."""
+    base = base_url.rstrip("/")
+    if base.endswith("/chat/completions"):
+        return base
+    if not urlsplit(base).path.strip("/"):
+        return base + "/v1/chat/completions"
+    return base + "/chat/completions"
+
+
 class VisionService:
     """Service for generating image descriptions using GLM-4.6V."""
 
     def __init__(self) -> None:
-        self._api_key: str = settings.zhipu_api_key
+        self._api_key: str = settings.vision_api_key
         self._model: str = settings.vision_model
         self._base_url: str = settings.vision_provider_url
 
@@ -40,12 +51,7 @@ class VisionService:
         default_prompt = "请用中文详细描述这张图片中的D&D生物或场景，包括外观特征、颜色、姿态等关键细节。"
         actual_prompt = prompt or default_prompt
 
-        # Build API URL - use chat/completions endpoint
-        base = self._base_url.rstrip("/")
-        if "chat/completions" in base:
-            api_url = base
-        else:
-            api_url = base + "/chat/completions"
+        api_url = build_chat_completions_url(self._base_url)
 
         async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(
@@ -141,12 +147,7 @@ class VisionService:
         # Extract filename without extension
         filename = Path(image_path).stem
 
-        # Build API URL
-        base = self._base_url.rstrip("/")
-        if "chat/completions" in base:
-            api_url = base
-        else:
-            api_url = base + "/chat/completions"
+        api_url = build_chat_completions_url(self._base_url)
 
         prompt = f"""请根据以下D&D怪物或物品的图片名称推断并描述它可能的外观。
 图片名称: {filename}

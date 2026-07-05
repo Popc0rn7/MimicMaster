@@ -64,7 +64,10 @@ class Settings:
         if not vision_url and self.provider_base_url:
             vision_url = f"{self.provider_base_url}/vision"
         self.vision_provider_url: str = vision_url or "mock"
-        self.zhipu_api_key: str = os.getenv("ZHIPU_API_KEY", "")
+        self.vision_api_key: str = os.getenv("VISION_API_KEY") or os.getenv(
+            "ZHIPU_API_KEY", ""
+        )
+        self.zhipu_api_key: str = self.vision_api_key
         self.vision_model: str = os.getenv("VISION_MODEL", "glm-4v")
 
         # LangSmith Configuration
@@ -145,12 +148,12 @@ class Settings:
     @property
     def use_mock_vision(self) -> bool:
         """Check if we should use mock vision service."""
-        return self.vision_provider_url == "mock" or not self.zhipu_api_key
+        return self.vision_provider_url == "mock" or not self.vision_api_key
 
     @property
     def is_vision_configured(self) -> bool:
         """Check if vision service is properly configured."""
-        return bool(self.zhipu_api_key and self.vision_provider_url != "mock")
+        return bool(self.vision_api_key and self.vision_provider_url != "mock")
 
     @property
     def is_pinecone_configured(self) -> bool:
