@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import importlib.util
+import os
 from typing import TYPE_CHECKING, Dict, List, Optional
 from openai import OpenAI
 from openai.types import Embedding
@@ -15,6 +17,23 @@ from mimic_master.models.embeddings import (
 
 if TYPE_CHECKING:
     from pinecone import Pinecone
+
+
+def normalize_proxy_environment(socksio_available: bool | None = None) -> list[str]:
+    """Remove SOCKS all-proxy settings when httpx lacks SOCKS support."""
+
+    if socksio_available is None:
+        socksio_available = importlib.util.find_spec("socksio") is not None
+    if socksio_available:
+        return []
+
+    removed = []
+    for key in ("all_proxy", "ALL_PROXY"):
+        value = os.environ.get(key, "")
+        if value.lower().startswith(("socks4://", "socks5://")):
+            os.environ.pop(key, None)
+            removed.append(key)
+    return removed
 
 
 class EmbeddingService:
@@ -33,6 +52,7 @@ class EmbeddingService:
                 "base URL, and model settings."
             )
         if self._embedding_client is None:
+            normalize_proxy_environment()
             self._embedding_client = OpenAI(
                 api_key=settings.embedding_api_key,
                 base_url=settings.embedding_base_url,

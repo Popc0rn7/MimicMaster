@@ -1,9 +1,14 @@
 """Tests for embedding service."""
 
+import os
+
 import pytest
 
 from mimic_master.config import settings
-from mimic_master.services.embedding_service import EmbeddingService
+from mimic_master.services.embedding_service import (
+    EmbeddingService,
+    normalize_proxy_environment,
+)
 from mimic_master.models.embeddings import DenseAndSparseEmbeddings, SparseVector
 
 
@@ -138,3 +143,17 @@ async def test_openai_compatible_embed_rejects_empty_dense_response(monkeypatch)
 
     with pytest.raises(RuntimeError, match="returned no dense embeddings"):
         await service._openai_compatible_embed(["test"])
+
+
+def test_embedding_service_normalizes_socks_proxy_without_socksio(monkeypatch):
+    """Embedding service should avoid httpx SOCKS imports when socksio is absent."""
+    monkeypatch.setenv("all_proxy", "socks5://127.0.0.1:7897")
+    monkeypatch.setenv("ALL_PROXY", "socks5://127.0.0.1:7897")
+    monkeypatch.setenv("https_proxy", "http://127.0.0.1:7897")
+
+    removed = normalize_proxy_environment(socksio_available=False)
+
+    assert removed == ["all_proxy", "ALL_PROXY"]
+    assert "all_proxy" not in os.environ
+    assert "ALL_PROXY" not in os.environ
+    assert os.environ["https_proxy"] == "http://127.0.0.1:7897"

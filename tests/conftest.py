@@ -7,7 +7,11 @@ import os
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_environment():
     """Set up test environment."""
-    if os.getenv("RUN_REAL_EMBEDDING") == "1":
+    if (
+        os.getenv("RUN_REAL_EMBEDDING") == "1"
+        or os.getenv("RUN_AGENT_E2E") == "1"
+        or os.getenv("RUN_SERVICE_E2E") == "1"
+    ):
         yield
         return
 
